@@ -83,6 +83,7 @@ union{
 }valShort;
 
 static unsigned int maxtrix_display[8] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+static unsigned int fbSensorData[9] = {0xff, 0x55, 0x01, 0x02, 0x03, 0x04, 0x05, 0x0D, 0x0A};
 /* Function Prototype */
 /*---------------------------------------------------------------------------*/
 void robotInit(void);
@@ -110,6 +111,7 @@ static void go_demo_srf05_lighsensor(void);
 #define LEDMATRIX               7
 #define RGBLED                  8
 #define TONE                    9
+#define SOUND_SENSOR            10
 
 
 #define LINE_DETECT_MODE      100
@@ -174,16 +176,12 @@ void led_matrix_test(void)
 {
       Vn74hc595           Matrix(MAXTRIX);
       
-      Serial.println("Test led ma trix.........");
-      
       Matrix.displayImage(all_on_effect, 500);
       delay(500);
       for (int cnt = 0; cnt < 27; cnt++) {
          Matrix.displayImage(motion_effect3[cnt], 50);
       }
       delay(3000); 
-      Serial.println("\nKet thuc test led matrix");
-      Serial.println("---------------------------------");
 }
 
 int i = 0;
@@ -297,13 +295,13 @@ float robotGetDistance(void)
 float robotGetLineSensor(void)
 {
   float line = (float)(LINE.readSensor1() * 2 + LINE.readSensor2());
-  ROBOX_LOG("LINE LEFT=%d RIGHT=%d line=%f\n", LINE.readSensor1(), LINE.readSensor2(), line);
+  ROBOX_LOG(" Line=%f\n", line);
   return line;
 }
 
 float robotGetLightSensor(void)
 {
-  float value = (float)(LightSensor.read() * 1000 / 4095);
+  float value = (float)(LightSensor.read() * 100 / 4095);
   ROBOX_LOG("LIGHTSENSOR=%.1f   %d\n", value, LightSensor.read());
   return value;
 }
@@ -340,7 +338,7 @@ static void readSerial(){
   if(SerialBT.available()>0){
     isAvailable = true;
     serialRead = SerialBT.read();
-    ROBOX_LOG("%x", serialRead);
+    //ROBOX_LOG("%x", serialRead);
   }
 }
 
@@ -385,10 +383,12 @@ void writeHead()
 
 static void writeSerial(unsigned char c){
   SerialBT.write(c);
+  ROBOX_LOG(" %x ", c);
 }
 
 static void writeEnd(){
-  SerialBT.println(); 
+  SerialBT.println();
+  ROBOX_LOG("0D 0A"); 
 }
 
 static void callOK(){
@@ -439,7 +439,7 @@ static void runModule(int device){
       for (int i = 0; i < 8; i++) {
         maxtrix_display[i] = (int)readBuffer(i+ 8); 
       }
-      ROBOX_LOG("device: %x %x %x %x %x %x %x ", 
+      ROBOX_LOG("\n matrix code: %x %x %x %x %x %x %x ", 
       maxtrix_display[0],maxtrix_display[1], maxtrix_display[2], maxtrix_display[3],
       maxtrix_display[4], maxtrix_display[5], maxtrix_display[6], maxtrix_display[7]);
       robotSetMatrix(maxtrix_display, readBuffer(16));
@@ -459,13 +459,9 @@ void sendFloat(float value)
 {  
   val.floatVal = value;
   writeSerial(val.byteVal[0]);
-  ROBOX_LOG("%x ", val.byteVal[0]);
   writeSerial(val.byteVal[1]);
-  ROBOX_LOG("%x ", val.byteVal[1]);
   writeSerial(val.byteVal[2]);
-  ROBOX_LOG("%x ", val.byteVal[2]);
   writeSerial(val.byteVal[3]);
-  ROBOX_LOG("%x ", val.byteVal[3]);
 }
 
 void readSensor(int device)
@@ -475,43 +471,40 @@ void readSensor(int device)
       0     1       2   3   4      5      6    7    8
       0xff  0x55   0x4 0x3 0x1    0x1    0x1  0xa 
   ***************************************************/
-  float value=0.0;
+  float value = 0.0;
   int port,slot,pin;
   port = readBuffer(6);
   pin = port;
+
   switch(device)
   {
     case ULTRASONIC_SENSOR:
     {
-      ROBOX_LOG("Read ULTRASONIC_SENSOR \n");
+      ROBOX_LOG("\n Read ULTRASONIC_SENSOR -- ");
       value = (float)robotGetDistance();
-      writeHead();
-      writeSerial(ULTRASONIC_SENSOR);
-//      ROBOX_LOG("id: %x ", command_index);
-      sendFloat(value);
       break;
     }
     case LINEFOLLOWER:
     {     
-      ROBOX_LOG("Read LINEFOLLOWER sensor \n");
-      value = robotGetLineSensor();
-      sendFloat(value);
+      ROBOX_LOG(" \n Read LINEFOLLOWER sensor -- ");
+      value = (float)robotGetLineSensor();
       break;
     }
     case LIGHT_SENSOR_VALUE:
     {     
-      ROBOX_LOG("Read LIGHT_SENSOR_VALUE sensor \n");
-      value = robotGetLightSensor();
-      sendFloat(value);
+      ROBOX_LOG("\n Read LIGHT_SENSOR_VALUE sensor -- ");
+      value = (float)robotGetLightSensor();
       break;
     }
     case BTN_MODE: {
-      ROBOX_LOG("Read state Button \n");
-      value = robotGetButtonState();
-      sendFloat(value);
+      ROBOX_LOG("\n Read state Button --");
+      value = (float)robotGetButtonState();
       break;
     }
   }
+  writeHead();
+  writeSerial(device);
+  sendFloat(value);
 }
 
 static void parseData(){
@@ -520,15 +513,12 @@ static void parseData(){
   command_index = (uint8_t)idx;
   int action = readBuffer(4);
   int device = readBuffer(5);
+  ROBOX_LOG(" device: %x", device);
   switch(action){
     case GET:{
-      if(device != ULTRASONIC_SENSOR) {
-        writeHead();
-        writeSerial(device);
-      }
        readSensor(device);
        writeEnd();
-     }
+    } 
      break;
      case RUN:{
        runModule(device);
