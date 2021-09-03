@@ -54,6 +54,7 @@
 #include <VnServo.h>
 #include <VnSoundSensor.h>
 #include <VnUltrasonicSensor.h>
+#include <VnColorSensor.h>
 
 /* Global Config */
 /*---------------------------------------------------------------------------*/
@@ -83,6 +84,7 @@ union{
 }valShort;
 
 static unsigned int maxtrix_display[8] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+static unsigned int ringled_display[12] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 static unsigned int fbSensorData[9] = {0xff, 0x55, 0x01, 0x02, 0x03, 0x04, 0x05, 0x0D, 0x0A};
 /* Function Prototype */
 /*---------------------------------------------------------------------------*/
@@ -112,6 +114,7 @@ static void go_demo_srf05_lighsensor(void);
 #define RGBLED                  8
 #define TONE                    9
 #define SOUND_SENSOR            10
+#define RING_LED                11
 
 
 #define LINE_DETECT_MODE      100
@@ -120,8 +123,11 @@ static void go_demo_srf05_lighsensor(void);
 #define NORMAL_MODE           103
 
 
-#define NUM_LEDS 2
-#define LED_DATA_PIN 23
+#define NUM_LEDS              2
+#define LED_DATA_PIN          23
+
+#define NUM_RING_LED          12
+#define LED_DATA_RING_LED     21 
 
 #define DEVICE_NAME "Robox"
 /* Hardware API */
@@ -129,13 +135,15 @@ static void go_demo_srf05_lighsensor(void);
 VnDCMotor           DcMotorL(M2);
 VnDCMotor           DcMotorR(M3);
 CRGB                leds[NUM_LEDS];
+CRGB                ring_leds[NUM_RING_LED];
 VnUltrasonicSensor  Ultra(ULTRA);
 VnBuzzer            Buzzer;
 VnLineFollower      LINE(FLOWLINE);
 VnLightSensor       LightSensor(LIGHT_SENSOR);
-VnSoundSensor       SoundSensor(SOUND_SENSOR);
+VnSoundSensor       SoundSensor(SOUND);
 VnButton            Btn(BUTTON);
 Vn74hc595           Matrix(MAXTRIX);
+VnColorSensor       ColorSensor(COLOR);
 /* Global Variable */
 /*---------------------------------------------------------------------------*/
 BluetoothSerial SerialBT;
@@ -183,7 +191,6 @@ void led_matrix_test(void)
       }
       delay(3000); 
 }
-
 int i = 0;
 void loop() 
 {
@@ -192,6 +199,7 @@ void loop()
 //    DcMotorL.run(-150, MOTOR2);
 //    DcMotorR.run(-150, MOTOR3);
     serialHandle();
+//    color_sensor_test();
 //    led_matrix_test();
 }
 
@@ -228,7 +236,8 @@ void Task1code( void * parameter)
 
 void robotInit(void)
 {
-  FastLED.addLeds<NEOPIXEL, LED_DATA_PIN>(leds, NUM_LEDS);
+  FastLED.addLeds<NEOPIXEL, LED_DATA_PIN>(leds, NUM_LEDS); 
+  FastLED.addLeds<NEOPIXEL, LED_DATA_RING_LED>(ring_leds, NUM_RING_LED);
   for (int i = 0; i < NUM_LEDS; i++)
     leds[i] = CRGB::Black;
   FastLED.show();  
@@ -272,7 +281,35 @@ void robotSetLed(int idx, int r, int g, int b)
   
   ROBOX_LOG("LEd idx=%d, r=%d, g=%d, b=%d\n", idx, r, g, b);
 }
+/*Effect ring led 1*/
+void rainbow_march(uint8_t thisdelay, uint8_t deltahue)  
+{
+  uint8_t thishue = millis()*(255-thisdelay)/255;             // To change the rate, add a beat or something to the result. 'thisdelay' must be a fixed value.
+  FastLED.setBrightness(50);
+  fill_rainbow(ring_leds, NUM_RING_LED, thishue, deltahue);            // Use FastLED's fill_rainbow routine.
+  Serial.println("");
+  for (int i = 0;  i < NUM_RING_LED; i++) {
+    Serial.print(ring_leds[i]);
+  }
+}
+/*****************************************************************************************/
+void robotSetRingLed(unsigned int affect[])
+{
+  switch (affect[0]) {
+    case 1: {
+      rainbow_march(200,20);
+      break;
+    }
+    default:
+      for (int i = 0; i < NUM_RING_LED; i++) {
+         ring_leds[i] = affect[i]; 
+      }
+  }
+  FastLED.show();
 
+  ROBOX_LOG("\n Ring Led: %d %d %d %d %d %d %d %d %d %d %d %d ", affect[0], affect[1], affect[2], affect[3], affect[4], affect[5]
+              , affect[6], affect[7], affect[8], affect[90], affect[10], affect[11]);
+}
 void robotSetTone(int freq, int duration)
 {
   Buzzer.tone(freq, duration);
@@ -288,30 +325,44 @@ void robotSetMatrix(unsigned int display[], int duration)
 float robotGetDistance(void)
 {
   float distance = (float)Ultra.distanceCm(200);
-  ROBOX_LOG("DISTANCE distance=%.2f\n", distance);
+  ROBOX_LOG("Distance = %.2f\n", distance);
   return distance;
 }
 
 float robotGetLineSensor(void)
 {
   float line = (float)(LINE.readSensor1() * 2 + LINE.readSensor2());
-  ROBOX_LOG(" Line=%f\n", line);
+  ROBOX_LOG(" LineSensor = %f\n", line);
   return line;
 }
 
 float robotGetLightSensor(void)
 {
   float value = (float)(LightSensor.read() * 100 / 4095);
-  ROBOX_LOG("LIGHTSENSOR=%.1f   %d\n", value, LightSensor.read());
+  ROBOX_LOG("LightSensor = %.1f   %d\n", value, LightSensor.read());
+  return value;
+}
+float robotGetColorSensor(void) {
+  float value = (float) (ColorSensor.detect_color());
+  ROBOX_LOG("ColorSensor = %.1f \n", value);
+  return value;
+}
+
+float robotGetSoundSensor(void)
+{
+  float value = (float)(SoundSensor.readSoundSignal());
+  ROBOX_LOG("SoundSensor = %.1f", value);
   return value;
 }
 
 float robotGetButtonState(void)
 {
   float value = (float)(Btn.read_mode());
-  ROBOX_LOG("STATE_BTN=%.1f", value);
+  ROBOX_LOG("StateBtn = %.1f", value);
   return value;
 }
+
+
 /* Classic Bluetooth API for Android */
 /*---------------------------------------------------------------------------*/
 char buffer[64];
@@ -383,7 +434,7 @@ void writeHead()
 
 static void writeSerial(unsigned char c){
   SerialBT.write(c);
-  ROBOX_LOG(" %x ", c);
+  //ROBOX_LOG(" %x ", c);
 }
 
 static void writeEnd(){
@@ -413,6 +464,7 @@ static void runModule(int device){
   //0xff 0x55 0x6 0x0 0x2 0x22 0x9 0x0 0x0 0xa
 //  ROBOX_LOG("Received command\n");
   int port = readBuffer(6);
+  int temp_buf[36];
   int pin = port;
   switch (device) {
     case JOYSTICK:{
@@ -429,6 +481,25 @@ static void runModule(int device){
       robotSetLed(idx, r, g, b);
       break;
     }
+    case RING_LED: {
+      ROBOX_LOG("\n");
+      for (int i = 0; i < 36; i++) {
+        temp_buf[i] = (int) readBuffer(i+9);
+//        ringled_display[i] = (int) readBuffer(i+8);
+//        ringled_display[i/3] = (int) rgb2HexColor(readBuffer(i + 9), readBuffer(i + 10), readBuffer(i + 11));
+//          int color = rgb2HexColor(r, g, b);
+          //ROBOX_LOG(" %x", readBuffer(i+9));
+      }
+//      for (int j = 0; j < 36; j++) {
+//         ROBOX_LOG(" %x", temp_buf[j]);
+//      }
+      for (int j = 0; j < 12; j++) {
+        ringled_display[j] = (int) rgb2HexColor(temp_buf[(j*3) + 0], temp_buf[(j*3) + 1], temp_buf[(j*3) + 2]); 
+      }
+      robotSetRingLed(ringled_display);
+      break;
+    }
+    
     case TONE:{
       int freq = readShort(8);  
       int duration = readShort(10);
@@ -480,25 +551,36 @@ void readSensor(int device)
   {
     case ULTRASONIC_SENSOR:
     {
-      ROBOX_LOG("\n Read ULTRASONIC_SENSOR -- ");
+      ROBOX_LOG("\n Read ultrasonic sensor -- ");
       value = (float)robotGetDistance();
       break;
     }
     case LINEFOLLOWER:
     {     
-      ROBOX_LOG(" \n Read LINEFOLLOWER sensor -- ");
+      ROBOX_LOG(" \n Read line sensor -- ");
       value = (float)robotGetLineSensor();
       break;
     }
     case LIGHT_SENSOR_VALUE:
     {     
-      ROBOX_LOG("\n Read LIGHT_SENSOR_VALUE sensor -- ");
+      ROBOX_LOG("\n Read light sensor -- ");
       value = (float)robotGetLightSensor();
+      break;
+    }
+    case COLOR_SENSOR: 
+    {        
+      ROBOX_LOG("\n Read color sensor -- "); 
+      value = robotGetColorSensor();
       break;
     }
     case BTN_MODE: {
       ROBOX_LOG("\n Read state Button --");
       value = (float)robotGetButtonState();
+      break;
+    }
+    case SOUND_SENSOR: {
+      ROBOX_LOG("\n Read Sound sensor --");
+      value = (float)robotGetSoundSensor();
       break;
     }
   }
