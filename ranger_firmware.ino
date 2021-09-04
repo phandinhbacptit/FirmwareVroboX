@@ -96,6 +96,7 @@ static void soundEffect(void);
 static void robotFollowingLine(void);
 static void go_in_circle(void);
 static void go_demo_srf05_lighsensor(void);
+static void go_demo_srf05(void);
 
 /* Global Define */
 /*---------------------------------------------------------------------------*/
@@ -120,7 +121,9 @@ static void go_demo_srf05_lighsensor(void);
 #define LINE_DETECT_MODE      100
 #define LINE_CIRCLE_MODE      101
 #define SOUND_FOLLOW_MODE     102
-#define NORMAL_MODE           103
+#define SRF05_RUN_MODE        103
+#define NORMAL_MODE           104
+#define IDE_MODE              0
 
 
 #define NUM_LEDS              2
@@ -167,14 +170,14 @@ void setup()
 	SerialBT.begin(DEVICE_NAME);
 //  BleInit();
 
-//  xTaskCreatePinnedToCore(
-//    Task1code, /* Function to implement the task */
-//    "Task1", /* Name of the task */
-//    8024,  /* Stack size in words */
-//    NULL,  /* Task input parameter */
-//    0,  /* Priority of the task */
-//    &Task1,  /* Task handle. */
-//    0); /* Core where the task should run */
+  xTaskCreatePinnedToCore(
+    Task1code, /* Function to implement the task */
+    "Task1", /* Name of the task */
+    8024,  /* Stack size in words */
+    NULL,  /* Task input parameter */
+    0,  /* Priority of the task */
+    &Task1,  /* Task handle. */
+    0); /* Core where the task should run */
 }
 
 /* Main Loop */
@@ -203,30 +206,37 @@ void loop()
 //    led_matrix_test();
 }
 
-int mode = NORMAL_MODE;
+int mode = IDE_MODE;
 void Task1code( void * parameter) 
 {
   while(1) {
     switch (mode)
     {
-    case NORMAL_MODE:
-      /* do nothing */
+    case NORMAL_MODE: {
+      robotSetJoyStick(0,0);
+      ROBOX_LOG("IDE_MODE\n");
       break;
+    }
     case LINE_DETECT_MODE: {
         robotFollowingLine();
-        //ROBOX_LOG("LINE_DETECT_MODE\n");
-      }
-      break;
+        ROBOX_LOG("LINE_DETECT_MODE\n");
+        break;
+    }
     case LINE_CIRCLE_MODE: {
         go_in_circle();
-        //ROBOX_LOG("LINE_CIRCLE_MODE\n");
-      }
-      break;
+        ROBOX_LOG("LINE_CIRCLE_MODE\n");
+        break;
+    }
     case SOUND_FOLLOW_MODE: {
         soundEffect();
-        //ROBOX_LOG("SOUND_FOLLOW_MODE\n");
+        ROBOX_LOG("SOUND_FOLLOW_MODE\n");
+        break;
       }
-      break;
+    case SRF05_RUN_MODE: {
+        go_demo_srf05();
+        ROBOX_LOG("SRF05_RUN_MODE\n");
+        break;
+    }
     default:
       break;
     }
@@ -468,6 +478,7 @@ static void runModule(int device){
   int pin = port;
   switch (device) {
     case JOYSTICK:{
+      mode = IDE_MODE;
       int leftSpeed = readShort(8);
       int rightSpeed = readShort(10);
       robotSetJoyStick(leftSpeed, rightSpeed);
@@ -519,6 +530,7 @@ static void runModule(int device){
     case LINE_DETECT_MODE:
     case LINE_CIRCLE_MODE:
     case SOUND_FOLLOW_MODE:
+    case SRF05_RUN_MODE:
     case NORMAL_MODE:
       ROBOX_LOG("Mode=%d\n", mode);
       mode = device;
@@ -735,7 +747,7 @@ static void soundEffect(void)
   int time = millis();
   while ((millis() - time) < 2500) {
     sound_detect = SoundSensor.readSoundSignal();
-    if (sound_detect == 0) {
+    if (sound_detect == 1) {
       delay(100);
       state++;  
     } 
@@ -744,25 +756,26 @@ static void soundEffect(void)
     leds[i] = CRGB::Black;
   }
   FastLED.show();
+  Serial.println(state);
   switch (state) {
     case 1:
-      DcMotorL.run(-170, MOTOR2);
-      DcMotorR.run(170, MOTOR3);
+      DcMotorL.run(170, MOTOR2);
+      DcMotorR.run(-170, MOTOR3);
       delay(1000);
       break;
     case 2:
-      DcMotorL.run(170, MOTOR2);
-      DcMotorR.run(-170, MOTOR3);
+      DcMotorL.run(-170, MOTOR2);
+      DcMotorR.run(170, MOTOR3);
       delay(1000);
       break;
     case 3:
-      DcMotorL.run(-170, MOTOR2);
-      DcMotorR.run(-170, MOTOR3);
+      DcMotorL.run(170, MOTOR2);
+      DcMotorR.run(170, MOTOR3);
       delay(1000);
       break;
     case 4:  
-      DcMotorL.run(170, MOTOR2);
-      DcMotorR.run(170, MOTOR3);
+      DcMotorL.run(-170, MOTOR2);
+      DcMotorR.run(-170, MOTOR3);
       delay(1000);
       break;
     case 5:  
@@ -790,39 +803,39 @@ static void robotFollowingLine(void)
 {
   if ((LINE.readSensor1() == 0) && (LINE.readSensor2() == 0)) {
       //Serial.println("find");
-      DcMotorL.run(190, MOTOR2);
-      DcMotorR.run(170, MOTOR3);
+      DcMotorL.run(-170, MOTOR2);
+      DcMotorR.run(-150, MOTOR3);
   }
   else if ((LINE.readSensor1() == 1) && (LINE.readSensor2() == 0)) {
       //Serial.println("left");
-      DcMotorL.run(-180, MOTOR2);
-      DcMotorR.run(-160, MOTOR3);
+      DcMotorL.run(160, MOTOR2);
+      DcMotorR.run(140, MOTOR3);
   }
   else if ((LINE.readSensor1() == 0) && (LINE.readSensor2() == 1)) {
        //Serial.println("right");
-      DcMotorL.run(190, MOTOR2);
-      DcMotorR.run(160, MOTOR3);
+      DcMotorL.run(-170, MOTOR2);
+      DcMotorR.run(-140, MOTOR3);
   }
   else if ((LINE.readSensor1() == 1) && (LINE.readSensor2() == 1)) {
       //Serial.println("forward");
-      DcMotorL.run(-170, MOTOR2);
-      DcMotorR.run(160, MOTOR3);
+      DcMotorL.run(150, MOTOR2);
+      DcMotorR.run(-140, MOTOR3);
   }
 }
 
 static void go_in_circle(void)
 {
     if ((LINE.readSensor1() == 0) && (LINE.readSensor2() == 0)) {
-      DcMotorL.run(-160, MOTOR2);
-      DcMotorR.run(160, MOTOR3);
+      DcMotorL.run(140, MOTOR2);
+      DcMotorR.run(-140, MOTOR3);
     }
     else if ((LINE.readSensor1() == 1) && (LINE.readSensor2() == 1)) {
       Serial.println("forward");
-      DcMotorL.run(160, MOTOR2);
-      DcMotorR.run(-160, MOTOR3);
+      DcMotorL.run(-140, MOTOR2);
+      DcMotorR.run(140, MOTOR3);
       delay(500);
-      DcMotorL.run(170, MOTOR2);
-      DcMotorR.run(190, MOTOR3);
+      DcMotorL.run(-150, MOTOR2);
+      DcMotorR.run(-170, MOTOR3);
       delay(1000);
     }
 }
@@ -847,4 +860,21 @@ static void go_demo_srf05_lighsensor(void)
       FastLED.show();
     }
   }
+}
+
+static void go_demo_srf05(void)
+{
+    if (Ultra.distanceCm(200) >= 10) {
+      DcMotorL.run(160, MOTOR2);
+      DcMotorR.run(-160, MOTOR3);
+    }
+    else{
+      Serial.println("forward");
+      DcMotorL.run(-160, MOTOR2);
+      DcMotorR.run(170, MOTOR3);
+      delay(500);
+      DcMotorL.run(-170, MOTOR2);
+      DcMotorR.run(-190, MOTOR3);
+      delay(1000);
+    }
 }
