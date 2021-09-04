@@ -127,7 +127,7 @@ static void go_demo_srf05_lighsensor(void);
 #define LED_DATA_PIN          23
 
 #define NUM_RING_LED          12
-#define LED_DATA_RING_LED     21 
+#define LED_DATA_RING_LED     13 
 
 #define DEVICE_NAME "Robox"
 /* Hardware API */
