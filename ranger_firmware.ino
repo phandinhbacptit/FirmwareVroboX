@@ -116,6 +116,8 @@ static void go_demo_srf05(void);
 #define TONE                    9
 #define SOUND_SENSOR            10
 #define RING_LED                11
+#define SERVO_RUN               12
+#define HEARTBIT                15
 
 
 #define LINE_DETECT_MODE      100
@@ -147,6 +149,7 @@ VnSoundSensor       SoundSensor(SOUND);
 VnButton            Btn(BUTTON);
 Vn74hc595           Matrix(MAXTRIX);
 VnColorSensor       ColorSensor(COLOR);
+VnServo             _servo(SERVO_PORT);
 /* Global Variable */
 /*---------------------------------------------------------------------------*/
 BluetoothSerial SerialBT;
@@ -169,6 +172,7 @@ void setup()
   robotStartup();
 	SerialBT.begin(DEVICE_NAME);
 //  BleInit();
+  _servo.attach(1);
 
   xTaskCreatePinnedToCore(
     Task1code, /* Function to implement the task */
@@ -187,10 +191,10 @@ void led_matrix_test(void)
 {
       Vn74hc595           Matrix(MAXTRIX);
       
-      Matrix.displayImage(all_on_effect, 500);
+      robotSetMatrix(all_on_effect, 500);     
       delay(500);
       for (int cnt = 0; cnt < 27; cnt++) {
-         Matrix.displayImage(motion_effect3[cnt], 50);
+         robotSetMatrix(motion_effect3[cnt], 50);
       }
       delay(3000); 
 }
@@ -202,8 +206,20 @@ void loop()
 //    DcMotorL.run(-150, MOTOR2);
 //    DcMotorR.run(-150, MOTOR3);
     serialHandle();
+//    _servo.attach(1);
+//    for (int i = 0; i < 200; i++) {
+//      _servo.rotate(i);
+//      delay(1);
+//    }
 //    color_sensor_test();
-//    led_matrix_test();
+ //   led_matrix_test();
+//       FastLED.addLeds<NEOPIXEL, LED_DATA_RING_LED>(ring_leds, NUM_RING_LED);
+//       Serial.println("before: ");
+//       Serial.print(ring_leds);
+//       Vn74hc595           Matrix(MAXTRIX);
+//       Serial.println("after: ");
+//       Serial.print(ring_leds);
+       
 }
 
 int mode = IDE_MODE;
@@ -255,12 +271,16 @@ void robotInit(void)
 
 void robotStartup(void) 
 {
-  for (i = 0; i < 5; i++) {
     robotSetLed(0, 255, 0, 0);
-    delay(500);
+    Buzzer.tone(830, 250);
+    delay(100);    
+    robotSetLed(0, 0, 255, 0);
+    Buzzer.tone(554, 250);
+    delay(100);    
+    robotSetLed(0, 0, 0, 255);
+    Buzzer.tone(740, 250);
+    delay(100);
     robotSetLed(0, 0, 0, 0);
-    delay(500);
-  }
 }
 
 void robotSetJoyStick(int leftSpeed, int rightSpeed)
@@ -322,15 +342,17 @@ void robotSetRingLed(unsigned int affect[])
 }
 void robotSetTone(int freq, int duration)
 {
-  Buzzer.tone(freq, duration);
-  ROBOX_LOG("TONE freq=%d, duration=%d\n", freq, duration);
+  int _duration = duration * 250;
+  Buzzer.tone(freq, _duration);
+  ROBOX_LOG("TONE freq=%d, duration=%d\n", freq, _duration);
 }
 
 void robotSetMatrix(unsigned int display[], int duration)
 {
-  Matrix.displayImage(display, duration);
-//  ROBOX_LOG("Display: %d %d %d %d %d %d %d %d \n", 
-//            display[0],display[1],display[2],display[3],display[4],display[5],display[6],display[7]);
+  int _duration = duration * 0x42;
+  Matrix.displayImage(display, _duration);
+  ROBOX_LOG("Duration: %d Display: %d %d %d %d %d %d %d %d \n", 
+            _duration, display[0],display[1],display[2],display[3],display[4],display[5],display[6],display[7]);
 }
 float robotGetDistance(void)
 {
@@ -399,7 +421,7 @@ static void readSerial(){
   if(SerialBT.available()>0){
     isAvailable = true;
     serialRead = SerialBT.read();
-    //ROBOX_LOG("%x", serialRead);
+    ROBOX_LOG("%x", serialRead);
   }
 }
 
@@ -449,13 +471,29 @@ static void writeSerial(unsigned char c){
 
 static void writeEnd(){
   SerialBT.println();
-  ROBOX_LOG("0D 0A"); 
+//  ROBOX_LOG("0D 0A"); 
 }
 
-static void callOK(){
+static void callOK(){    
     writeSerial(0xff);
     writeSerial(0x55);
+    writeSerial(HEARTBIT);
+    sendFloat(12345);
     writeEnd();
+    
+    robotSetLed(0, 0x00, 0xff, 0x00);
+    robotSetJoyStick(200, 200);
+    Buzzer.tone(830, 250);
+    robotSetLed(0, 0x00, 0x00, 0xff);
+    robotSetJoyStick(-200, -200);
+    Buzzer.tone(622, 250);
+    robotSetLed(0, 0x00, 0x00, 0x00);
+    robotSetJoyStick(0, -0);
+    SerialBT.flush();
+  if(SerialBT.available()>0){
+    serialRead = SerialBT.read();
+    ROBOX_LOG("start: %x", serialRead);
+  }
 }
 
 static unsigned char readBuffer(int index){
@@ -469,7 +507,7 @@ static short readShort(int idx){
   ROBOX_LOG("Byte2:%x ", valShort.byteVal[1]);
   return valShort.shortVal; 
 }
-
+int count = 0;
 static void runModule(int device){
   //0xff 0x55 0x6 0x0 0x2 0x22 0x9 0x0 0x0 0xa
 //  ROBOX_LOG("Received command\n");
@@ -493,6 +531,7 @@ static void runModule(int device){
       break;
     }
     case RING_LED: {
+      //FastLED.addLeds<NEOPIXEL, LED_DATA_RING_LED>(ring_leds, NUM_RING_LED);
       ROBOX_LOG("\n");
       for (int i = 0; i < 36; i++) {
         temp_buf[i] = (int) readBuffer(i+9);
@@ -518,10 +557,12 @@ static void runModule(int device){
       break;
     }
     case LEDMATRIX: {
+       Vn74hc595           Matrix(MAXTRIX);
+
       for (int i = 0; i < 8; i++) {
         maxtrix_display[i] = (int)readBuffer(i+ 8); 
       }
-      ROBOX_LOG("\n matrix code: %x %x %x %x %x %x %x ", 
+      ROBOX_LOG("\n matrix code: %x %x %x %x %x %x %x %x ", 
       maxtrix_display[0],maxtrix_display[1], maxtrix_display[2], maxtrix_display[3],
       maxtrix_display[4], maxtrix_display[5], maxtrix_display[6], maxtrix_display[7]);
       robotSetMatrix(maxtrix_display, readBuffer(16));
@@ -534,6 +575,11 @@ static void runModule(int device){
     case NORMAL_MODE:
       ROBOX_LOG("Mode=%d\n", mode);
       mode = device;
+      break;
+    case SERVO_RUN:
+      int angle = (readBuffer(8)) << 8 | readBuffer(9);
+      ROBOX_LOG("Angle=%d\n", angle);
+      _servo.rotate(angle);
       break;
   }
 }
@@ -556,7 +602,8 @@ void readSensor(int device)
   ***************************************************/
   float value = 0.0;
   int port,slot,pin;
-  port = readBuffer(6);
+  int stateModule = readBuffer(6);
+  port = readBuffer(7);
   pin = port;
 
   switch(device)
@@ -580,9 +627,15 @@ void readSensor(int device)
       break;
     }
     case COLOR_SENSOR: 
-    {        
-      ROBOX_LOG("\n Read color sensor -- "); 
-      value = robotGetColorSensor();
+    { 
+      if (stateModule) {       
+        ROBOX_LOG("\n Read color sensor -- "); 
+        value = robotGetColorSensor();
+      }
+      else {
+        ColorSensor.disable_color_sensor();              
+        ROBOX_LOG("\n Stop read color sensor -- "); 
+      }
       break;
     }
     case BTN_MODE: {
@@ -595,6 +648,14 @@ void readSensor(int device)
       value = (float)robotGetSoundSensor();
       break;
     }
+    case HEARTBIT: {
+      ROBOX_LOG("\n Get HeartBit Request");
+      value = (float)12345; 
+      break;
+    }
+    
+    default:
+       break;
   }
   writeHead();
   writeSerial(device);
@@ -627,8 +688,11 @@ static void parseData(){
      case START:{
         //start
         callOK();
-      }
-     break;
+        ROBOX_LOG("\n Receive Start CMD -- ");
+        break;
+     }
+     default:
+       break;
   }
 }
 
@@ -830,7 +894,6 @@ static void go_in_circle(void)
       DcMotorR.run(-140, MOTOR3);
     }
     else if ((LINE.readSensor1() == 1) && (LINE.readSensor2() == 1)) {
-      Serial.println("forward");
       DcMotorL.run(-140, MOTOR2);
       DcMotorR.run(140, MOTOR3);
       delay(500);
@@ -869,7 +932,6 @@ static void go_demo_srf05(void)
       DcMotorR.run(-160, MOTOR3);
     }
     else{
-      Serial.println("forward");
       DcMotorL.run(-160, MOTOR2);
       DcMotorR.run(170, MOTOR3);
       delay(500);
