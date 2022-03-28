@@ -55,6 +55,9 @@
 #include <VnSoundSensor.h>
 #include <VnUltrasonicSensor.h>
 #include <VnColorSensor.h>
+#include <EEPROM.h>
+
+#define FLASH_MEMORY_SIZE 13
 
 /* Global Config */
 /*---------------------------------------------------------------------------*/
@@ -86,6 +89,8 @@ union{
 static unsigned int maxtrix_display[8] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 static unsigned int ringled_display[12] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 static unsigned int fbSensorData[9] = {0xff, 0x55, 0x01, 0x02, 0x03, 0x04, 0x05, 0x0D, 0x0A};
+String defaultName = "VROBOX_000000";
+int addrSaveNameRobot = 0;
 /* Function Prototype */
 /*---------------------------------------------------------------------------*/
 void robotInit(void);
@@ -134,7 +139,7 @@ static void go_demo_srf05(void);
 #define NUM_RING_LED          12
 #define LED_DATA_RING_LED     13 
 
-#define DEVICE_NAME "Robox"
+String DEVICE_NAME = "Robox";
 /* Hardware API */
 /*---------------------------------------------------------------------------*/
 VnDCMotor           DcMotorL(M2);
@@ -165,15 +170,50 @@ void convertint2byte(int value)
   ROBOX_LOG("Byte1:%x ", buf[0]);
   ROBOX_LOG("Byte2:%x ", buf[1]); 
 }
+void writeStringToEEPROM(int addrOffset, const String &strToWrite)
+{
+  byte len = strToWrite.length();
+  EEPROM.write(addrOffset, len);
+  for (int i = 0; i < len; i++)
+  {
+    EEPROM.write(addrOffset + 1 + i, strToWrite[i]);
+  }
+}
+
+String readStringFromEEPROM(int addrOffset)
+{
+  int newStrLen = EEPROM.read(addrOffset);
+  char data[newStrLen + 1];
+  for (int i = 0; i < newStrLen; i++)
+  {
+    data[i] = EEPROM.read(addrOffset + 1 + i);
+  }
+  data[newStrLen] = '\ 0'; // !!! NOTE !!! Remove the space between the slash "/" and "0" (I've added a space because otherwise there is a display bug)
+  return String(data);
+}
+
 void setup()
 {
+  String tmpName;
   robotInit();
 	Serial.begin(115200);
+  EEPROM.begin(FLASH_MEMORY_SIZE);
   robotStartup();
-	SerialBT.begin(DEVICE_NAME);
 //  BleInit();
   _servo.attach(1);
 
+  writeStringToEEPROM(addrSaveNameRobot, defaultName);
+  EEPROM.commit();
+  delay(2);
+  tmpName = readStringFromEEPROM(addrSaveNameRobot);
+  if (tmpName != "") {
+    Serial.println(tmpName);
+    DEVICE_NAME = tmpName;
+  }
+  else
+    DEVICE_NAME = defaultName;
+       
+  SerialBT.begin(DEVICE_NAME);
   xTaskCreatePinnedToCore(
     Task1code, /* Function to implement the task */
     "Task1", /* Name of the task */
@@ -773,30 +813,30 @@ class BLERobotCallbacks: public BLECharacteristicCallbacks {
 
 void BleInit(void)
 {
-  BLEDevice::init(DEVICE_NAME);
-  BLEDevice::setPower(ESP_PWR_LVL_P9);
-  BLEDevice::setMTU(512);
-  BLEServer *pServer = BLEDevice::createServer();
-  pServer->setCallbacks(new BleServerCallbacks());
-  
-  BLEService *pService = pServer->createService(SERVICE_UUID);
-  BLECharacteristic *pCharacteristic = pService->createCharacteristic(
-                                         ROBOT_UUID,
-                                         BLECharacteristic::PROPERTY_READ |
-                                         BLECharacteristic::PROPERTY_WRITE);                                 
-  pCharacteristic->setCallbacks(new BLERobotCallbacks());
-  pService->start();
-  
-  BLEAdvertising *pAdvertising = pServer->getAdvertising();
-  BLEAdvertisementData adv1;
-  adv1.setName(DEVICE_NAME);
-  pAdvertising->setAdvertisementData(adv1);
-  
-  BLEAdvertisementData adv;
-  adv.setCompleteServices(BLEUUID(SERVICE_UUID));
-  pAdvertising->setScanResponseData(adv);
-  
-  pAdvertising->start();
+//  BLEDevice::init(&DEVICE_NAME);
+//  BLEDevice::setPower(ESP_PWR_LVL_P9);
+//  BLEDevice::setMTU(512);
+//  BLEServer *pServer = BLEDevice::createServer();
+//  pServer->setCallbacks(new BleServerCallbacks());
+//  
+//  BLEService *pService = pServer->createService(SERVICE_UUID);
+//  BLECharacteristic *pCharacteristic = pService->createCharacteristic(
+//                                         ROBOT_UUID,
+//                                         BLECharacteristic::PROPERTY_READ |
+//                                         BLECharacteristic::PROPERTY_WRITE);                                 
+//  pCharacteristic->setCallbacks(new BLERobotCallbacks());
+//  pService->start();
+//  
+//  BLEAdvertising *pAdvertising = pServer->getAdvertising();
+//  BLEAdvertisementData adv1;
+//  adv1.setName(DEVICE_NAME);
+//  pAdvertising->setAdvertisementData(adv1);
+//  
+//  BLEAdvertisementData adv;
+//  adv.setCompleteServices(BLEUUID(SERVICE_UUID));
+//  pAdvertising->setScanResponseData(adv);
+//  
+//  pAdvertising->start();
 }
 static void soundEffect(void)
 {
