@@ -81,6 +81,8 @@
 
 /* Global Structure */
 /*---------------------------------------------------------------------------*/
+bool stateConnected = false;
+bool oldstateConnected = false;
 union{
   byte byteVal[2];
   short shortVal;
@@ -139,7 +141,7 @@ static void go_demo_srf05(void);
 #define NUM_RING_LED          12
 #define LED_DATA_RING_LED     13 
 
-String DEVICE_NAME = "Robox";
+#define DEVICE_NAME  "VROBOX_00000"
 /* Hardware API */
 /*---------------------------------------------------------------------------*/
 VnDCMotor           DcMotorL(M2);
@@ -199,19 +201,19 @@ void setup()
 	Serial.begin(115200);
   EEPROM.begin(FLASH_MEMORY_SIZE);
   robotStartup();
-//  BleInit();
+  BleInit();
   _servo.attach(1);
 
-  writeStringToEEPROM(addrSaveNameRobot, defaultName);
-  EEPROM.commit();
-  delay(2);
-  tmpName = readStringFromEEPROM(addrSaveNameRobot);
-  if (tmpName != "") {
-    Serial.println(tmpName);
-    DEVICE_NAME = tmpName;
-  }
-  else
-    DEVICE_NAME = defaultName;
+//  writeStringToEEPROM(addrSaveNameRobot, defaultName);
+//  EEPROM.commit();
+//  delay(2);
+//  tmpName = readStringFromEEPROM(addrSaveNameRobot);
+//  if (tmpName != "") {
+//    Serial.println(tmpName);
+//    DEVICE_NAME = tmpName;
+//  }
+//  else
+//    DEVICE_NAME = defaultName;
        
   SerialBT.begin(DEVICE_NAME);
   xTaskCreatePinnedToCore(
@@ -259,6 +261,19 @@ void loop()
 //       Vn74hc595           Matrix(MAXTRIX);
 //       Serial.println("after: ");
 //       Serial.print(ring_leds);
+
+  // disconnecting
+  if (!stateConnected && oldstateConnected) {
+    delay(500); // give the bluetooth stack the chance to get things ready
+    BleInit();
+    Serial.println("start advertising");
+    oldstateConnected = stateConnected;
+  }
+  // connecting
+  if (stateConnected && !oldstateConnected) {
+    // do stuff here on connecting
+    oldstateConnected = stateConnected;
+  }
        
 }
 
@@ -745,10 +760,12 @@ class BleServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
       uint8_t address[6] = {0xe0, 0x99, 0x71, 0xb6, 0x02, 0xc4};
       ROBOX_LOG("BLE Connected\n");
+      stateConnected  = true;
     };
 
     void onDisconnect(BLEServer* pServer) {
       ROBOX_LOG("BLE Disconnected\n");
+      stateConnected  = false;
     }
 };
 
@@ -757,7 +774,7 @@ class BLERobotCallbacks: public BLECharacteristicCallbacks {
       uint8_t charBuf[64];      
       std::string value = pCharacteristic->getValue();
 
-      ROBOX_LOG("BLE write: ");
+      ROBOX_LOG("BLE write: %d", value);
       for (int i = 0; i < value.length(); i++) {
         charBuf[i] = value[i];
         ROBOX_LOG("%x ", charBuf[i]);
@@ -780,7 +797,7 @@ class BLERobotCallbacks: public BLECharacteristicCallbacks {
     void onRead(BLECharacteristic *pCharacteristic) {
       uint8_t buf[5] = {1, 2, 3, 4, 5};
       ROBOX_LOG("reading...\n");
-      pCharacteristic->setValue("anh yeu em");
+      pCharacteristic->setValue("Vrobox");
     }
     
     void ledRgb(uint8_t *value, uint8_t len) {
@@ -813,30 +830,30 @@ class BLERobotCallbacks: public BLECharacteristicCallbacks {
 
 void BleInit(void)
 {
-//  BLEDevice::init(&DEVICE_NAME);
-//  BLEDevice::setPower(ESP_PWR_LVL_P9);
-//  BLEDevice::setMTU(512);
-//  BLEServer *pServer = BLEDevice::createServer();
-//  pServer->setCallbacks(new BleServerCallbacks());
-//  
-//  BLEService *pService = pServer->createService(SERVICE_UUID);
-//  BLECharacteristic *pCharacteristic = pService->createCharacteristic(
-//                                         ROBOT_UUID,
-//                                         BLECharacteristic::PROPERTY_READ |
-//                                         BLECharacteristic::PROPERTY_WRITE);                                 
-//  pCharacteristic->setCallbacks(new BLERobotCallbacks());
-//  pService->start();
-//  
-//  BLEAdvertising *pAdvertising = pServer->getAdvertising();
-//  BLEAdvertisementData adv1;
-//  adv1.setName(DEVICE_NAME);
-//  pAdvertising->setAdvertisementData(adv1);
-//  
-//  BLEAdvertisementData adv;
-//  adv.setCompleteServices(BLEUUID(SERVICE_UUID));
-//  pAdvertising->setScanResponseData(adv);
-//  
-//  pAdvertising->start();
+  BLEDevice::init(DEVICE_NAME);
+  BLEDevice::setPower(ESP_PWR_LVL_P9);
+  BLEDevice::setMTU(512);
+  BLEServer *pServer = BLEDevice::createServer();
+  pServer->setCallbacks(new BleServerCallbacks());
+  
+  BLEService *pService = pServer->createService(SERVICE_UUID);
+  BLECharacteristic *pCharacteristic = pService->createCharacteristic(
+                                         ROBOT_UUID,
+                                         BLECharacteristic::PROPERTY_READ |
+                                         BLECharacteristic::PROPERTY_WRITE);                                 
+  pCharacteristic->setCallbacks(new BLERobotCallbacks());
+  pService->start();
+  
+  BLEAdvertising *pAdvertising = pServer->getAdvertising();
+  BLEAdvertisementData adv1;
+  adv1.setName(DEVICE_NAME);
+  pAdvertising->setAdvertisementData(adv1);
+  
+  BLEAdvertisementData adv;
+  adv.setCompleteServices(BLEUUID(SERVICE_UUID));
+  pAdvertising->setScanResponseData(adv);
+  
+  pAdvertising->start();
 }
 static void soundEffect(void)
 {
