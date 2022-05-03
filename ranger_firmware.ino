@@ -84,6 +84,11 @@
 BLECharacteristic *pCharacteristic;
 bool stateBle = false;
 uint8_t robotFeedback[9] = {0xff, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0D, 0x0A};
+
+volatile int cntEnterSleepMode;
+hw_timer_t * timerCntEnterSleepMode = NULL;
+portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+
 /* Global Structure */
 /*---------------------------------------------------------------------------*/
 bool stateConnected = false;
@@ -169,6 +174,30 @@ TaskHandle_t Task1;
 
 /* Setup function */
 /*---------------------------------------------------------------------------*/
+void IRAM_ATTR onTimer() {
+  portENTER_CRITICAL_ISR(&timerMux);
+  cntEnterSleepMode++;
+//  Serial.println(cntEnterSleepMode);
+  portEXIT_CRITICAL_ISR(&timerMux);
+ 
+}
+
+void print_wakeup_reason(){
+  esp_sleep_wakeup_cause_t wakeup_reason;
+
+  wakeup_reason = esp_sleep_get_wakeup_cause();
+
+  switch(wakeup_reason)
+  {
+    case ESP_SLEEP_WAKEUP_EXT0 : Serial.println("Wakeup caused by external signal using RTC_IO"); break;
+    case ESP_SLEEP_WAKEUP_EXT1 : Serial.println("Wakeup caused by external signal using RTC_CNTL"); break;
+    case ESP_SLEEP_WAKEUP_TIMER : Serial.println("Wakeup caused by timer"); break;
+    case ESP_SLEEP_WAKEUP_TOUCHPAD : Serial.println("Wakeup caused by touchpad"); break;
+    case ESP_SLEEP_WAKEUP_ULP : Serial.println("Wakeup caused by ULP program"); break;
+    default : Serial.printf("Wakeup was not caused by deep sleep: %d\n",wakeup_reason); break;
+  }
+}
+
 void convertint2byte(int value)
 {
   byte buf[2];
@@ -199,6 +228,20 @@ String readStringFromEEPROM(int addrOffset)
   return String(data);
 }
 
+void actionBeforeSleep() {
+    robotSetLed(0, 255, 0, 0);
+    Buzzer.tone(830, 250);    
+    robotSetLed(0, 0, 0, 0);
+    delay(100);      
+    robotSetLed(0, 255, 0, 0);
+    Buzzer.tone(830, 250);  
+    robotSetLed(0, 0, 0, 0);
+    delay(100);      
+    robotSetLed(0, 255, 0, 0);
+    Buzzer.tone(830, 250);  
+    robotSetLed(0, 0, 0, 0);
+    delay(100);    
+}
 void setup()
 {
   String tmpName;
@@ -208,6 +251,13 @@ void setup()
   robotStartup();
   BleInit();
   _servo.attach(1);
+  
+  timerCntEnterSleepMode = timerBegin(1, 80, true);
+  timerAttachInterrupt(timerCntEnterSleepMode, &onTimer, true);
+  timerAlarmWrite(timerCntEnterSleepMode, 1000000, true);
+  timerAlarmEnable(timerCntEnterSleepMode);
+
+  print_wakeup_reason();
 
 //  writeStringToEEPROM(addrSaveNameRobot, defaultName);
 //  EEPROM.commit();
@@ -279,7 +329,12 @@ void loop()
     // do stuff here on connecting
     oldstateConnected = stateConnected;
   }
-       
+  if (cntEnterSleepMode >= 120) {
+    actionBeforeSleep();
+    esp_sleep_enable_ext0_wakeup(GPIO_NUM_39,0); //1 = High, 0 = Low
+    Serial.println("Going to sleep now");
+    esp_deep_sleep_start();
+  }     
 }
 
 int mode = IDE_MODE;
@@ -662,25 +717,29 @@ void readSensor(int device)
   switch(device)
   {
     case ULTRASONIC_SENSOR:
-    {
+    {       
+      cntEnterSleepMode = 0;
       ROBOX_LOG("\n Read ultrasonic sensor -- ");
       value = (float)robotGetDistance();
       break;
     }
     case LINEFOLLOWER:
-    {     
+    {    
+      cntEnterSleepMode = 0; 
       ROBOX_LOG(" \n Read line sensor -- ");
       value = (float)robotGetLineSensor();
       break;
     }
     case LIGHT_SENSOR_VALUE:
     {     
+      cntEnterSleepMode = 0;
       ROBOX_LOG("\n Read light sensor -- ");
       value = (float)robotGetLightSensor();
       break;
     }
     case COLOR_SENSOR: 
     { 
+      cntEnterSleepMode = 0;
       if (stateModule) {       
         ROBOX_LOG("\n Read color sensor -- "); 
         value = robotGetColorSensor();
@@ -693,11 +752,13 @@ void readSensor(int device)
     }
     case BTN_MODE: {
       ROBOX_LOG("\n Read state Button --");
+      cntEnterSleepMode = 0;
       value = (float)robotGetButtonState();
       break;
     }
     case SOUND_SENSOR: {
       ROBOX_LOG("\n Read Sound sensor --");
+      cntEnterSleepMode = 0;
       value = (float)robotGetSoundSensor();
       break;
     }
@@ -705,10 +766,9 @@ void readSensor(int device)
       ROBOX_LOG("\n Get HeartBit Request");
       value = (float)12345; 
       break;
-    }
-    
+    }    
     default:
-       break;
+      break;
   }
   if (stateBle) {
     val.floatVal = value;
@@ -738,7 +798,8 @@ static void parseData(){
        writeEnd();
     } 
      break;
-     case RUN:{
+     case RUN:{       
+       cntEnterSleepMode = 0;
        runModule(device);
        //callOK();
      }
