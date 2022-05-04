@@ -245,10 +245,9 @@ void actionBeforeSleep() {
 void setup()
 {
   String tmpName;
-  robotInit();
+  robotStartup();
 	Serial.begin(115200);
   EEPROM.begin(FLASH_MEMORY_SIZE);
-  robotStartup();
   BleInit();
   _servo.attach(1);
   
@@ -329,7 +328,7 @@ void loop()
     // do stuff here on connecting
     oldstateConnected = stateConnected;
   }
-  if (cntEnterSleepMode >= 120) {
+  if (cntEnterSleepMode >= 180) {
     actionBeforeSleep();
     esp_sleep_enable_ext0_wakeup(GPIO_NUM_39,0); //1 = High, 0 = Low
     Serial.println("Going to sleep now");
@@ -375,17 +374,15 @@ void Task1code( void * parameter)
   }
 }
 
-void robotInit(void)
-{
-  FastLED.addLeds<NEOPIXEL, LED_DATA_PIN>(leds, NUM_LEDS); 
-  FastLED.addLeds<NEOPIXEL, LED_DATA_RING_LED>(ring_leds, NUM_RING_LED);
-  for (int i = 0; i < NUM_LEDS; i++)
-    leds[i] = CRGB::Black;
-  FastLED.show();  
-}
 
 void robotStartup(void) 
 {
+    FastLED.addLeds<NEOPIXEL, LED_DATA_PIN>(leds, NUM_LEDS); 
+    FastLED.addLeds<NEOPIXEL, LED_DATA_RING_LED>(ring_leds, NUM_RING_LED);
+    for (int i = 0; i < NUM_LEDS; i++)
+    leds[i] = CRGB::Black;
+    FastLED.show();  
+  
     robotSetLed(0, 255, 0, 0);
     Buzzer.tone(830, 250);
     delay(100);    
@@ -396,6 +393,10 @@ void robotStartup(void)
     Buzzer.tone(740, 250);
     delay(100);
     robotSetLed(0, 0, 0, 0);
+    robotSetJoyStick(1, 1);
+    robotSetJoyStick(0, 0);
+    robotSetRingLed(ringled_display);
+    robotSetMatrix(maxtrix_display, 0);
 }
 
 void robotSetJoyStick(int leftSpeed, int rightSpeed)
