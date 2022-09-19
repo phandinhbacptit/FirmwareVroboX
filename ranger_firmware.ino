@@ -250,13 +250,14 @@ void setup()
   EEPROM.begin(FLASH_MEMORY_SIZE);
   BleInit();
   _servo.attach(1);
-  
-  timerCntEnterSleepMode = timerBegin(1, 80, true);
-  timerAttachInterrupt(timerCntEnterSleepMode, &onTimer, true);
-  timerAlarmWrite(timerCntEnterSleepMode, 1000000, true);
-  timerAlarmEnable(timerCntEnterSleepMode);
 
-  print_wakeup_reason();
+/*__________For Sleep mode___________________________*/
+//  timerCntEnterSleepMode = timerBegin(1, 80, true);
+//  timerAttachInterrupt(timerCntEnterSleepMode, &onTimer, true);
+//  timerAlarmWrite(timerCntEnterSleepMode, 1000000, true);
+//  timerAlarmEnable(timerCntEnterSleepMode);
+//  print_wakeup_reason();
+/*_________________________________________________*/
 
 //  writeStringToEEPROM(addrSaveNameRobot, defaultName);
 //  EEPROM.commit();
@@ -307,8 +308,8 @@ void loop()
 //      _servo.rotate(i);
 //      delay(1);
 //    }
-//    color_sensor_test();
- //   led_matrix_test();
+//    robotGetColorSensor();
+//    led_matrix_test();
 //       FastLED.addLeds<NEOPIXEL, LED_DATA_RING_LED>(ring_leds, NUM_RING_LED);
 //       Serial.println("before: ");
 //       Serial.print(ring_leds);
@@ -328,12 +329,16 @@ void loop()
     // do stuff here on connecting
     oldstateConnected = stateConnected;
   }
-  if (cntEnterSleepMode >= 180) {
-    actionBeforeSleep();
-    esp_sleep_enable_ext0_wakeup(GPIO_NUM_39,0); //1 = High, 0 = Low
-    Serial.println("Going to sleep now");
-    esp_deep_sleep_start();
-  }     
+
+
+/*___________For sleep mode______________________*/
+//  if (cntEnterSleepMode >= 180) {
+//    actionBeforeSleep();
+//    esp_sleep_enable_ext0_wakeup(GPIO_NUM_39,0); //1 = High, 0 = Low
+//    Serial.println("Going to sleep now");
+//    esp_deep_sleep_start();
+//  }     
+/*________________________________________________*/
 }
 
 int mode = IDE_MODE;
@@ -950,15 +955,15 @@ static void go_demo_srf05_lighsensor(void)
 static void go_demo_srf05(void)
 {
     if (Ultra.distanceCm(200) >= 10) {
-      DcMotorL.run(160, MOTOR2);
-      DcMotorR.run(-160, MOTOR3);
+      DcMotorL.run(245, MOTOR2);
+      DcMotorR.run(-245, MOTOR3);
     }
     else{
-      DcMotorL.run(-160, MOTOR2);
-      DcMotorR.run(170, MOTOR3);
+      DcMotorL.run(-245, MOTOR2);
+      DcMotorR.run(255, MOTOR3);
       delay(500);
-      DcMotorL.run(-170, MOTOR2);
-      DcMotorR.run(-190, MOTOR3);
+      DcMotorL.run(-255, MOTOR2);
+      DcMotorR.run(-255, MOTOR3);
       delay(1000);
     }
 }
