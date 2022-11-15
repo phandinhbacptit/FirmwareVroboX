@@ -55,6 +55,7 @@
 #include <VnSoundSensor.h>
 #include <VnUltrasonicSensor.h>
 #include <VnColorSensor.h>
+#include <VnLed.h>
 #include <EEPROM.h>
 
 #define FLASH_MEMORY_SIZE 13
@@ -137,6 +138,7 @@ static void go_demo_srf05(void);
 #define HEARTBIT                15
 
 
+
 #define LINE_DETECT_MODE      100
 #define LINE_CIRCLE_MODE      101
 #define SOUND_FOLLOW_MODE     102
@@ -167,6 +169,7 @@ VnButton            Btn(BUTTON);
 Vn74hc595           Matrix(MAXTRIX);
 VnColorSensor       ColorSensor(COLOR);
 VnServo             _servo(SERVO_PORT);
+VnLed               singleLed(SINGLE_LED);
 /* Global Variable */
 /*---------------------------------------------------------------------------*/
 BluetoothSerial SerialBT;
@@ -302,6 +305,11 @@ void loop()
 //    DcMotorL.run(150, MOTOR1);
 //    DcMotorL.run(-150, MOTOR2);
 //    DcMotorR.run(-150, MOTOR3);
+//      singleLed.ctrLed(ON);
+//      delay(1000);     
+//      singleLed.ctrLed(OFF);
+//      delay(1000);
+         
     serialHandle();
 //    _servo.attach(1);
 //    for (int i = 0; i < 200; i++) {
