@@ -56,6 +56,7 @@
 #include <VnUltrasonicSensor.h>
 #include <VnColorSensor.h>
 #include <VnLed.h>
+#include <VnLedTraffic.h>
 #include <EEPROM.h>
 
 #define FLASH_MEMORY_SIZE 13
@@ -170,6 +171,7 @@ Vn74hc595           Matrix(MAXTRIX);
 VnColorSensor       ColorSensor(COLOR);
 VnServo             _servo(SERVO_PORT);
 VnLed               singleLed(SINGLE_LED);
+VnLedTraffic        trafficLed(TRAFFIC_LED);
 /* Global Variable */
 /*---------------------------------------------------------------------------*/
 BluetoothSerial SerialBT;
@@ -309,8 +311,21 @@ void loop()
 //      delay(1000);     
 //      singleLed.ctrLed(OFF);
 //      delay(1000);
-         
-    serialHandle();
+//
+//       trafficLed.ctrLed(RED, ON);
+//       delay(1000);
+//       trafficLed.ctrLed(YELLOW, ON);
+//       delay(1000);
+//       trafficLed.ctrLed(GREEN, ON);
+//       delay(1000);
+//       
+//       trafficLed.ctrLed(RED, OFF);  
+//       trafficLed.ctrLed(YELLOW, OFF);
+//       trafficLed.ctrLed(GREEN, OFF);
+//       delay(1000);
+
+
+       serialHandle();
 //    _servo.attach(1);
 //    for (int i = 0; i < 200; i++) {
 //      _servo.rotate(i);
