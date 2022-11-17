@@ -57,6 +57,7 @@
 #include <VnColorSensor.h>
 #include <VnLed.h>
 #include <VnLedTraffic.h>
+#include <VnRelay.h>
 #include <EEPROM.h>
 
 #define FLASH_MEMORY_SIZE 13
@@ -172,6 +173,7 @@ VnColorSensor       ColorSensor(COLOR);
 VnServo             _servo(SERVO_PORT);
 VnLed               singleLed(SINGLE_LED);
 VnLedTraffic        trafficLed(TRAFFIC_LED);
+VnRelay             relay(RELAY);
 /* Global Variable */
 /*---------------------------------------------------------------------------*/
 BluetoothSerial SerialBT;
@@ -323,6 +325,11 @@ void loop()
 //       trafficLed.ctrLed(YELLOW, OFF);
 //       trafficLed.ctrLed(GREEN, OFF);
 //       delay(1000);
+
+        relay.ctrRelay(ON);
+        delay(1000);
+        relay.ctrRelay(OFF);
+        delay(1000);
 
 
        serialHandle();
