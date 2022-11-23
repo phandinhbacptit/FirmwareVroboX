@@ -59,6 +59,7 @@
 #include <VnLedTraffic.h>
 #include <VnRelay.h>
 #include <VnKeyBoard.h>
+#include <VnLed7Seg.h>
 #include <EEPROM.h>
 
 #define FLASH_MEMORY_SIZE 13
@@ -176,6 +177,7 @@ VnLed               singleLed(SINGLE_LED);
 VnLedTraffic        trafficLed(TRAFFIC_LED);
 VnRelay             relay(RELAY);
 VnKeyBoard          keyboard(KEYBOARD);
+VnLed7Seg           led7seg(LED7SEG);
 /* Global Variable */
 /*---------------------------------------------------------------------------*/
 BluetoothSerial SerialBT;
@@ -333,9 +335,14 @@ void loop()
 //        relay.ctrRelay(OFF);
 //        delay(1000);
 
-        Serial.println(keyboard.read_button());
-
-       //serialHandle();
+//        Serial.println(keyboard.read_button());
+      
+       led7seg.setLed(LED7SEG1, 8);      
+//       led7seg.setLed(LED7SEG2, 9);      
+//       led7seg.setLed(LED7SEG3, 10);      
+       led7seg.setLed(LED7SEG4, 'C');
+       
+       serialHandle();
 //    _servo.attach(1);
 //    for (int i = 0; i < 200; i++) {
 //      _servo.rotate(i);
