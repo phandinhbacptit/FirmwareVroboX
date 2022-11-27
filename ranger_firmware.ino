@@ -63,6 +63,9 @@
 #include <EEPROM.h>
 
 #define FLASH_MEMORY_SIZE 13
+int measureBatPin = 14;
+int adcValue = 0;
+float voltageMeas = 0;
 
 /* Global Config */
 /*---------------------------------------------------------------------------*/
@@ -253,6 +256,14 @@ void actionBeforeSleep() {
     robotSetLed(0, 0, 0, 0);
     delay(100);    
 }
+void measureBattery()
+{
+  adcValue = analogRead(measureBatPin);// read the value from the analog channel
+  Serial.print("digital value = ");
+  Serial.println(adcValue);        //print digital value on serial monitor
+  delay(1000);
+}
+
 void setup()
 {
   String tmpName;
@@ -261,6 +272,7 @@ void setup()
   EEPROM.begin(FLASH_MEMORY_SIZE);
   BleInit();
   _servo.attach(1);
+  pinMode(measureBatPin, INPUT);
 
 /*__________For Sleep mode___________________________*/
 //  timerCntEnterSleepMode = timerBegin(1, 80, true);
@@ -337,11 +349,13 @@ void loop()
 
 //        Serial.println(keyboard.read_button());
       
-       led7seg.setLed(LED7SEG1, 8);      
+//       led7seg.setLed(LED7SEG1, 8);      
 //       led7seg.setLed(LED7SEG2, 9);      
 //       led7seg.setLed(LED7SEG3, 10);      
-       led7seg.setLed(LED7SEG4, 'C');
-       
+//       led7seg.setLed(LED7SEG4, 'C');
+//       measureBattery();
+//        VnUltrasonicSensor  Ultra(ULTRA);
+       Serial.println(Ultra.distanceCm(5000));
        serialHandle();
 //    _servo.attach(1);
 //    for (int i = 0; i < 200; i++) {
