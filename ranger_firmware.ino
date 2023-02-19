@@ -90,6 +90,7 @@ float voltageMeas = 0;
 #define SERVICE_UUID      "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define ROBOT_UUID        "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 BLECharacteristic *pCharacteristic;
+BLEServer *pServer;
 bool stateBle = false;
 uint8_t robotFeedback[9] = {0xff, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0D, 0x0A};
 
@@ -143,6 +144,12 @@ static void go_demo_srf05(void);
 #define RING_LED                11
 #define SERVO_RUN               12
 #define HEARTBIT                15
+#define LED_7SEG                16
+#define LED_SINGLE              17
+#define LED_TRACFFIC            18
+#define RELAY                   19
+#define KEYBOARD                20
+#define TEMP_HUMI_SENSOR        21
 
 
 
@@ -258,9 +265,11 @@ void actionBeforeSleep() {
 }
 void measureBattery()
 {
+  float voltage = 0;
   adcValue = analogRead(measureBatPin);// read the value from the analog channel
-  Serial.print("digital value = ");
-  Serial.println(adcValue);        //print digital value on serial monitor
+  voltage = (float)adcValue / 4096 * 3.3;
+  Serial.print("Voltage monitor = ");
+  Serial.println(voltage);        //print digital value on serial monitor
   delay(1000);
 }
 
@@ -271,8 +280,9 @@ void setup()
 	Serial.begin(115200);
   EEPROM.begin(FLASH_MEMORY_SIZE);
   BleInit();
+  Serial.print("BleInit1" );
   _servo.attach(1);
-  pinMode(measureBatPin, INPUT);
+//  pinMode(measureBatPin, INPUT);
 
 /*__________For Sleep mode___________________________*/
 //  timerCntEnterSleepMode = timerBegin(1, 80, true);
@@ -353,9 +363,9 @@ void loop()
 //       led7seg.setLed(LED7SEG2, 9);      
 //       led7seg.setLed(LED7SEG3, 10);      
 //       led7seg.setLed(LED7SEG4, 'C');
-//       measureBattery();
+       measureBattery();
 //        VnUltrasonicSensor  Ultra(ULTRA);
-       Serial.println(Ultra.distanceCm(5000));
+//       Serial.println(Ultra.distanceCm(5000));
        serialHandle();
 //    _servo.attach(1);
 //    for (int i = 0; i < 200; i++) {
@@ -374,7 +384,7 @@ void loop()
   // disconnecting
   if (!stateConnected && oldstateConnected) {
     delay(500); // give the bluetooth stack the chance to get things ready
-    BleInit();
+    BleAdvertising();
     Serial.println("start advertising");
     oldstateConnected = stateConnected;
   }
@@ -569,7 +579,12 @@ float robotGetButtonState(void)
   return value;
 }
 
-
+float robotGetButtonKeyboard(void)
+{
+  float value = (float)(keyboard.read_button());
+  ROBOX_LOG("StateBtn = %.1f", value);
+  return value;
+}
 /* Classic Bluetooth API for Android */
 /*---------------------------------------------------------------------------*/
 char buffer[64];
@@ -739,15 +754,39 @@ static void runModule(int device){
     case LINE_CIRCLE_MODE:
     case SOUND_FOLLOW_MODE:
     case SRF05_RUN_MODE:
-    case NORMAL_MODE:
+    case NORMAL_MODE: {
       ROBOX_LOG("Mode=%d\n", mode);
       mode = device;
       break;
-    case SERVO_RUN:
+    }
+    case SERVO_RUN: {
       int angle = (readBuffer(8)) << 8 | readBuffer(9);
       ROBOX_LOG("Angle=%d\n", angle);
       _servo.rotate(angle);
       break;
+    }
+    case LED_SINGLE  :{ 
+        int stateCtrLed = readBuffer(8);
+        singleLed.ctrLed(stateCtrLed);
+      break;
+    }
+    case LED_7SEG: { 
+        int posLed = readBuffer(8);
+        int data = readBuffer(9);
+        led7seg.setLed(posLed, data);
+      break;
+    }
+    case LED_TRACFFIC:{ 
+        int typeLed = readBuffer(8);
+        int stateCtr = readBuffer(9);
+        trafficLed.ctrLed(typeLed, stateCtr);
+      break;
+    }
+    case RELAY:{ 
+        int stateCtrRelay = readBuffer(8);
+         relay.ctrRelay(stateCtrRelay);
+      break;
+    }
   }
 }
 
@@ -827,6 +866,12 @@ void readSensor(int device)
       value = (float)12345; 
       break;
     }    
+    case RELAY: {
+      ROBOX_LOG("\n Read state Keyboard --");
+      cntEnterSleepMode = 0;
+      value = (float)robotGetButtonKeyboard();
+      break;  
+    }
     default:
       break;
   }
@@ -1063,23 +1108,8 @@ class BLERobotCallbacks: public BLECharacteristicCallbacks {
     }
 };
 
-
-void BleInit(void)
+void BleAdvertising(void)
 {
-  BLEDevice::init(DEVICE_NAME);
-  BLEDevice::setPower(ESP_PWR_LVL_P9);
-  BLEDevice::setMTU(512);
-  BLEServer *pServer = BLEDevice::createServer();
-  pServer->setCallbacks(new BleServerCallbacks());
-  
-  BLEService *pService = pServer->createService(SERVICE_UUID);
-  pCharacteristic = pService->createCharacteristic(
-                                         ROBOT_UUID,
-                                         BLECharacteristic::PROPERTY_READ |
-                                         BLECharacteristic::PROPERTY_WRITE);                                 
-  pCharacteristic->setCallbacks(new BLERobotCallbacks());
-  pService->start();
-  
   BLEAdvertising *pAdvertising = pServer->getAdvertising();
   BLEAdvertisementData adv1;
   adv1.setName(DEVICE_NAME);
@@ -1090,4 +1120,23 @@ void BleInit(void)
   pAdvertising->setScanResponseData(adv);
   
   pAdvertising->start();
+}
+void BleInit(void)
+{
+  BLEDevice::init(DEVICE_NAME);
+  BLEDevice::setPower(ESP_PWR_LVL_P9);
+  BLEDevice::setMTU(512);
+  pServer = BLEDevice::createServer();
+//  BLEServer *pServer = BLEDevice::createServer();
+  pServer->setCallbacks(new BleServerCallbacks());
+  
+  BLEService *pService = pServer->createService(SERVICE_UUID);
+  pCharacteristic = pService->createCharacteristic(
+                                         ROBOT_UUID,
+                                         BLECharacteristic::PROPERTY_READ |
+                                         BLECharacteristic::PROPERTY_WRITE);                                 
+  pCharacteristic->setCallbacks(new BLERobotCallbacks());
+  pService->start();
+
+  BleAdvertising();
 }
