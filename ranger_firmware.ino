@@ -131,6 +131,7 @@ static void go_demo_srf05(void);
 #define RESET 4
 #define START 5
 
+#define STOP                    0
 #define ULTRASONIC_SENSOR       1
 #define LINEFOLLOWER            2
 #define LIGHT_SENSOR_VALUE      3
@@ -263,26 +264,28 @@ void actionBeforeSleep() {
     robotSetLed(0, 0, 0, 0);
     delay(100);    
 }
-void measureBattery()
+int measureBattery()
 {
   float voltage = 0;
+  int percentCapacity = 0;
   adcValue = analogRead(measureBatPin);// read the value from the analog channel
   voltage = (float)adcValue / 4096 * 3.3;
-  Serial.print("Voltage monitor = ");
-  Serial.println(voltage);        //print digital value on serial monitor
-  delay(1000);
+  percentCapacity = voltage * 100 / 4.2;
+
+  return percentCapacity;
 }
 
 void setup()
 {
-  String tmpName;
+//  String tmpName;
   robotStartup();
 	Serial.begin(115200);
   EEPROM.begin(FLASH_MEMORY_SIZE);
+  Serial.print("Test code sản xuat khi thay doi");
   BleInit();
   Serial.print("BleInit1" );
-  _servo.attach(1);
-//  pinMode(measureBatPin, INPUT);
+  _servo.attach(1);    
+  pinMode(measureBatPin, INPUT);
 
 /*__________For Sleep mode___________________________*/
 //  timerCntEnterSleepMode = timerBegin(1, 80, true);
@@ -302,7 +305,7 @@ void setup()
 //  }
 //  else
 //    DEVICE_NAME = defaultName;
-       
+//  led7seg.setLed(8, 9, 'a', 'b', 5);    
   SerialBT.begin(DEVICE_NAME);
   xTaskCreatePinnedToCore(
     Task1code, /* Function to implement the task */
@@ -319,8 +322,7 @@ void setup()
 
 void led_matrix_test(void)
 {
-      Vn74hc595           Matrix(MAXTRIX);
-      
+      Vn74hc595           Matrix(MAXTRIX);      
       robotSetMatrix(all_on_effect, 500);     
       delay(500);
       for (int cnt = 0; cnt < 27; cnt++) {
@@ -359,13 +361,16 @@ void loop()
 
 //        Serial.println(keyboard.read_button());
       
-//       led7seg.setLed(LED7SEG1, 8);      
+//       led7seg.setLed(8, 9, 'a', 'b', 100);      
 //       led7seg.setLed(LED7SEG2, 9);      
 //       led7seg.setLed(LED7SEG3, 10);      
 //       led7seg.setLed(LED7SEG4, 'C');
-       measureBattery();
+//       delay(100);
+
 //        VnUltrasonicSensor  Ultra(ULTRA);
-//       Serial.println(Ultra.distanceCm(5000));
+//       Serial.println(Ultra.distanceCm1(5000));
+//       delay(500);
+//       measureBattery();
        serialHandle();
 //    _servo.attach(1);
 //    for (int i = 0; i < 200; i++) {
@@ -467,7 +472,14 @@ void robotStartup(void)
     robotSetRingLed(ringled_display);
     robotSetMatrix(maxtrix_display, 0);
 }
-
+void actionWhenStopRobot(void) 
+{
+    robotSetLed(0, 0, 0, 0);
+    robotSetJoyStick(1, 1);
+    robotSetJoyStick(0, 0);
+    robotSetRingLed(ringled_display);
+    robotSetMatrix(maxtrix_display, 0);
+}
 void robotSetJoyStick(int leftSpeed, int rightSpeed)
 {
   DcMotorL.run(leftSpeed, MOTOR2);
@@ -541,7 +553,7 @@ void robotSetMatrix(unsigned int display[], int duration)
 }
 float robotGetDistance(void)
 {
-  float distance = (float)Ultra.distanceCm(200);
+  float distance = (float)Ultra.distanceCm1(200);
   ROBOX_LOG("Distance = %.2f\n", distance);
   return distance;
 }
@@ -705,6 +717,10 @@ static void runModule(int device){
   int temp_buf[36];
   int pin = port;
   switch (device) {
+    case STOP: {
+      actionWhenStopRobot();
+      break;
+    }
     case JOYSTICK:{
       mode = IDE_MODE;
       int leftSpeed = readShort(8);
@@ -766,25 +782,29 @@ static void runModule(int device){
       break;
     }
     case LED_SINGLE  :{ 
-        int stateCtrLed = readBuffer(8);
+        ROBOX_LOG("RUN LED_SINGLE: %d\n",readBuffer(8));
+        int stateCtrLed = readBuffer(6);
         singleLed.ctrLed(stateCtrLed);
       break;
     }
     case LED_7SEG: { 
         int posLed = readBuffer(8);
-        int data = readBuffer(9);
-        led7seg.setLed(posLed, data);
+        int data = readBuffer(9) - 30;
+        ROBOX_LOG("RUN LED_7SEG: %d %d\n",posLed, data);
+//        led7seg.setLed(posLed, data);
       break;
     }
     case LED_TRACFFIC:{ 
         int typeLed = readBuffer(8);
         int stateCtr = readBuffer(9);
+        ROBOX_LOG("RUN LED_TRACFFIC: %d %d\n",typeLed, stateCtr);
         trafficLed.ctrLed(typeLed, stateCtr);
       break;
     }
     case RELAY:{ 
-        int stateCtrRelay = readBuffer(8);
-         relay.ctrRelay(stateCtrRelay);
+        int stateCtrRelay = readBuffer(6);
+        ROBOX_LOG("RUN RELAY: %d\n",stateCtrRelay);
+        relay.ctrRelay(stateCtrRelay);
       break;
     }
   }
@@ -863,10 +883,10 @@ void readSensor(int device)
     }
     case HEARTBIT: {
       ROBOX_LOG("\n Get HeartBit Request");
-      value = (float)12345; 
+      value = (float)measureBattery(); 
       break;
     }    
-    case RELAY: {
+    case KEYBOARD: {
       ROBOX_LOG("\n Read state Keyboard --");
       cntEnterSleepMode = 0;
       value = (float)robotGetButtonKeyboard();
@@ -1031,7 +1051,7 @@ static void go_in_circle(void)
 static void go_demo_srf05_lighsensor(void)
 {
   while (SoundSensor.readSoundSignal()) {
-    if (Ultra.distanceCm(200) <= 10) {
+    if (Ultra.distanceCm1(200) <= 10) {
       Buzzer.tone(NOTE_A4, 700);
       Buzzer.tone(NOTE_F5, 700);
     }
@@ -1053,7 +1073,7 @@ static void go_demo_srf05_lighsensor(void)
 
 static void go_demo_srf05(void)
 {
-    if (Ultra.distanceCm(200) >= 10) {
+    if (Ultra.distanceCm1(200) >= 10) {
       DcMotorL.run(245, MOTOR2);
       DcMotorR.run(-245, MOTOR3);
     }
