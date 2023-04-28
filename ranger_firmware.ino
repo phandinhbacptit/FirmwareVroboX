@@ -86,6 +86,7 @@ float voltageMeas = 0;
 #include "FastLED.h"
 #include <stdio.h>
 #include <string.h>
+#include <sstream>
 
 #define SERVICE_UUID      "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define ROBOT_UUID        "beb5483e-36e1-4688-b7f5-ea07361b26a8"
@@ -106,12 +107,19 @@ union{
   byte byteVal[2];
   short shortVal;
 }valShort;
-
+bool stateRunMatrixLed = false;
+bool stateRunLed7Seg = false;
+int matrixDuration = 0;
+int led7segDuration = 0;
+static unsigned int data_led_7_seg[4] = {0,0,0,0};
 static unsigned int maxtrix_display[8] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 static unsigned int ringled_display[12] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 static unsigned int fbSensorData[9] = {0xff, 0x55, 0x01, 0x02, 0x03, 0x04, 0x05, 0x0D, 0x0A};
-String defaultName = "VROBOX_000000";
+std::string defaultName = "VROBOX_1234";
 int addrSaveNameRobot = 0;
+std::string DEVICE_NAME = "VROBOX_0711";
+std::string BASE_NAME = "VROBOX_";
+String curName ="";
 /* Function Prototype */
 /*---------------------------------------------------------------------------*/
 void robotInit(void);
@@ -152,23 +160,19 @@ static void go_demo_srf05(void);
 #define KEYBOARD                20
 #define TEMP_HUMI_SENSOR        21
 
-
-
 #define LINE_DETECT_MODE      100
 #define LINE_CIRCLE_MODE      101
 #define SOUND_FOLLOW_MODE     102
 #define SRF05_RUN_MODE        103
 #define NORMAL_MODE           104
 #define IDE_MODE              0
-
+#define NAMEROBOT             105
 
 #define NUM_LEDS              2
 #define LED_DATA_PIN          23
 
 #define NUM_RING_LED          12
 #define LED_DATA_RING_LED     13 
-
-#define DEVICE_NAME  "VROBOX_00000"
 /* Hardware API */
 /*---------------------------------------------------------------------------*/
 VnDCMotor           DcMotorL(M2);
@@ -192,7 +196,8 @@ VnLed7Seg           led7seg(LED7SEG);
 /* Global Variable */
 /*---------------------------------------------------------------------------*/
 BluetoothSerial SerialBT;
-TaskHandle_t Task1;
+TaskHandle_t TaskModeRobot;
+TaskHandle_t Task_Led7Seg_Matrix;
 
 /* Setup function */
 /*---------------------------------------------------------------------------*/
@@ -241,12 +246,12 @@ void writeStringToEEPROM(int addrOffset, const String &strToWrite)
 String readStringFromEEPROM(int addrOffset)
 {
   int newStrLen = EEPROM.read(addrOffset);
-  char data[newStrLen + 1];
+  char data[newStrLen];
   for (int i = 0; i < newStrLen; i++)
   {
     data[i] = EEPROM.read(addrOffset + 1 + i);
   }
-  data[newStrLen] = '\ 0'; // !!! NOTE !!! Remove the space between the slash "/" and "0" (I've added a space because otherwise there is a display bug)
+  data[newStrLen] = '\0'; // !!! NOTE !!! Remove the space between the slash "/" and "0" (I've added a space because otherwise there is a display bug)
   return String(data);
 }
 
@@ -270,20 +275,26 @@ int measureBattery()
   int percentCapacity = 0;
   adcValue = analogRead(measureBatPin);// read the value from the analog channel
   voltage = (float)adcValue / 4096 * 3.3;
-  percentCapacity = voltage * 100 / 4.2;
-
+  percentCapacity = voltage * 100 / 3.3;
   return percentCapacity;
+}
+
+std::string to_string(int x) {
+  int length = snprintf(NULL, 0, "%d", x);
+  assert(length >= 0);
+  char* buf = new char[length + 1];
+  snprintf(buf, length + 1, "%d", x);
+  std::string str(buf);
+  delete[] buf;
+  return str;
 }
 
 void setup()
 {
-//  String tmpName;
   robotStartup();
 	Serial.begin(115200);
   EEPROM.begin(FLASH_MEMORY_SIZE);
-  Serial.print("Test code sản xuat khi thay doi");
   BleInit();
-  Serial.print("BleInit1" );
   _servo.attach(1);    
   pinMode(measureBatPin, INPUT);
 
@@ -294,43 +305,29 @@ void setup()
 //  timerAlarmEnable(timerCntEnterSleepMode);
 //  print_wakeup_reason();
 /*_________________________________________________*/
-
-//  writeStringToEEPROM(addrSaveNameRobot, defaultName);
+//  BASE_NAME = BASE_NAME + to_string(1235);
+//  writeStringToEEPROM(addrSaveNameRobot, String(BASE_NAME.c_str()));
 //  EEPROM.commit();
-//  delay(2);
-//  tmpName = readStringFromEEPROM(addrSaveNameRobot);
+//
+//  curName = readStringFromEEPROM(addrSaveNameRobot);
+//
+//  Serial.println(curName);
 //  if (tmpName != "") {
 //    Serial.println(tmpName);
-//    DEVICE_NAME = tmpName;
+//    DEVICE_NAME = std::string(tmpName.c_str());
 //  }
 //  else
 //    DEVICE_NAME = defaultName;
-//  led7seg.setLed(8, 9, 'a', 'b', 5);    
-  SerialBT.begin(DEVICE_NAME);
-  xTaskCreatePinnedToCore(
-    Task1code, /* Function to implement the task */
-    "Task1", /* Name of the task */
-    8024,  /* Stack size in words */
-    NULL,  /* Task input parameter */
-    0,  /* Priority of the task */
-    &Task1,  /* Task handle. */
-    0); /* Core where the task should run */
+
+  SerialBT.begin(String(DEVICE_NAME.c_str()));
+  xTaskCreatePinnedToCore(Task_Mode_Code,"Task1",8024,NULL, 0,&TaskModeRobot,0);
+  delay(500);   
+  xTaskCreatePinnedToCore(Task_Led7Seg_Matrix_Code,"Task_Led7Seg_Matrix_code",8024,NULL,0,&Task_Led7Seg_Matrix,0);  
+  delay(500);   
 }
 
 /* Main Loop */
 /*---------------------------------------------------------------------------*/
-
-void led_matrix_test(void)
-{
-      Vn74hc595           Matrix(MAXTRIX);      
-      robotSetMatrix(all_on_effect, 500);     
-      delay(500);
-      for (int cnt = 0; cnt < 27; cnt++) {
-         robotSetMatrix(motion_effect3[cnt], 50);
-      }
-      delay(3000); 
-}
-int i = 0;
 void loop() 
 {
    //robotSetJoyStick(100, 100);
@@ -411,7 +408,7 @@ void loop()
 }
 
 int mode = IDE_MODE;
-void Task1code( void * parameter) 
+void Task_Mode_Code( void * parameter) 
 {
   while(1) {
     switch (mode)
@@ -447,8 +444,20 @@ void Task1code( void * parameter)
     delay(100);
   }
 }
-
-
+void Task_Led7Seg_Matrix_Code(void *parameter) 
+{
+  for(;;){ 
+    if (stateRunLed7Seg) {
+      stateRunLed7Seg = false;
+      led7seg.setLed(data_led_7_seg[0], data_led_7_seg[1], data_led_7_seg[2], data_led_7_seg[3], led7segDuration);   
+    }        
+    if (stateRunMatrixLed) {
+      stateRunMatrixLed = false;
+      robotSetMatrix(maxtrix_display, matrixDuration);
+    }
+    vTaskDelay(100);
+  }
+}
 void robotStartup(void) 
 {
     FastLED.addLeds<NEOPIXEL, LED_DATA_PIN>(leds, NUM_LEDS); 
@@ -457,15 +466,15 @@ void robotStartup(void)
     leds[i] = CRGB::Black;
     FastLED.show();  
   
-    robotSetLed(0, 255, 0, 0);
-    Buzzer.tone(830, 250);
-    delay(100);    
-    robotSetLed(0, 0, 255, 0);
-    Buzzer.tone(554, 250);
-    delay(100);    
-    robotSetLed(0, 0, 0, 255);
-    Buzzer.tone(740, 250);
-    delay(100);
+//    robotSetLed(0, 255, 0, 0);
+//    Buzzer.tone(830, 250);
+//    delay(100);    
+//    robotSetLed(0, 0, 255, 0);
+//    Buzzer.tone(554, 250);
+//    delay(100);    
+//    robotSetLed(0, 0, 0, 255);
+//    Buzzer.tone(740, 250);
+//    delay(100);
     robotSetLed(0, 0, 0, 0);
     robotSetJoyStick(1, 1);
     robotSetJoyStick(0, 0);
@@ -760,10 +769,8 @@ static void runModule(int device){
       for (int i = 0; i < 8; i++) {
         maxtrix_display[i] = (int)readBuffer(i+ 8); 
       }
-      ROBOX_LOG("\n matrix code: %x %x %x %x %x %x %x %x ", 
-      maxtrix_display[0],maxtrix_display[1], maxtrix_display[2], maxtrix_display[3],
-      maxtrix_display[4], maxtrix_display[5], maxtrix_display[6], maxtrix_display[7]);
-      robotSetMatrix(maxtrix_display, readBuffer(16));
+      matrixDuration = readBuffer(16);
+      stateRunMatrixLed = true;
       break;
     }
     case LINE_DETECT_MODE:
@@ -788,9 +795,12 @@ static void runModule(int device){
       break;
     }
     case LED_7SEG: { 
-        int posLed = readBuffer(8);
-        int data = readBuffer(9) - 30;
-        ROBOX_LOG("RUN LED_7SEG: %d %d\n",posLed, data);
+        stateRunLed7Seg = true;
+        for (int i = 0; i < 4; i++) {
+          data_led_7_seg[i] = readBuffer(8 + i) - 30;  
+        }
+        led7segDuration = readBuffer(12);
+        ROBOX_LOG("RUN LED_7SEG: %d %d %d %d %d\n",readBuffer(8) - 30, readBuffer(9) - 30, readBuffer(10) - 30, readBuffer(11) - 30, readBuffer(12) - 30);
 //        led7seg.setLed(posLed, data);
       break;
     }
@@ -806,6 +816,21 @@ static void runModule(int device){
         ROBOX_LOG("RUN RELAY: %d\n",stateCtrRelay);
         relay.ctrRelay(stateCtrRelay);
       break;
+    }
+    case NAMEROBOT: {
+      int idRobot = (readBuffer(4) << 24) | (readBuffer(5) << 16) | (readBuffer(6) << 8) | readBuffer(7);
+      BASE_NAME = BASE_NAME + to_string(idRobot);
+      writeStringToEEPROM(addrSaveNameRobot, String(BASE_NAME.c_str()));
+      EEPROM.commit();
+      curName = readStringFromEEPROM(addrSaveNameRobot);
+      if (curName != "") {
+        DEVICE_NAME = std::string(curName.c_str());
+      }
+      else
+        DEVICE_NAME = defaultName;
+        BleInit();
+        SerialBT.begin(String(DEVICE_NAME.c_str()));
+        break;
     }
   }
 }
@@ -882,7 +907,7 @@ void readSensor(int device)
       break;
     }
     case HEARTBIT: {
-      ROBOX_LOG("\n Get HeartBit Request");
+      ROBOX_LOG("\n Get Battery capacity");
       value = (float)measureBattery(); 
       break;
     }    
@@ -891,6 +916,13 @@ void readSensor(int device)
       cntEnterSleepMode = 0;
       value = (float)robotGetButtonKeyboard();
       break;  
+    }
+    case NAMEROBOT: {
+        ROBOX_LOG("\n Read name robot --");
+        curName = readStringFromEEPROM(addrSaveNameRobot);
+        int index = curName.indexOf('_');
+        value = curName.substring(index + 1, index + 5).toFloat();   
+        break;
     }
     default:
       break;
