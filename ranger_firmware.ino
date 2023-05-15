@@ -66,7 +66,8 @@
 int measureBatPin = 14;
 int adcValue = 0;
 float voltageMeas = 0;
-
+int device_get = 0;
+int action_get = 0;
 /* Global Config */
 /*---------------------------------------------------------------------------*/
 #if (1) 
@@ -134,12 +135,14 @@ static void go_demo_srf05(void);
 
 /* Global Define */
 /*---------------------------------------------------------------------------*/
-#define GET 1
-#define RUN 2
-#define RESET 4
-#define START 5
+#define STOP      0
+#define GET       1
+#define RUN       2
+#define RESET     4
+#define START     5
+#define BATTERY   6
 
-#define STOP                    0
+
 #define ULTRASONIC_SENSOR       1
 #define LINEFOLLOWER            2
 #define LIGHT_SENSOR_VALUE      3
@@ -198,6 +201,8 @@ VnLed7Seg           led7seg(LED7SEG);
 BluetoothSerial SerialBT;
 TaskHandle_t TaskModeRobot;
 TaskHandle_t Task_Led7Seg_Matrix;
+TaskHandle_t Task_Read_Sensor;
+TaskHandle_t Task_Read_Battery;
 
 /* Setup function */
 /*---------------------------------------------------------------------------*/
@@ -324,6 +329,11 @@ void setup()
   delay(500);   
   xTaskCreatePinnedToCore(Task_Led7Seg_Matrix_Code,"Task_Led7Seg_Matrix_code",8024,NULL,0,&Task_Led7Seg_Matrix,0);  
   delay(500);   
+
+  xTaskCreatePinnedToCore(Task_Read_Sensor_Code,"Task_Led7Seg_Matrix_code",8024,NULL,0,&Task_Read_Sensor,0);  
+  delay(500);  
+  xTaskCreatePinnedToCore(Task_Read_Battery_Code,"Task_Led7Seg_Matrix_code",8024,NULL,0,&Task_Read_Battery,0);  
+  delay(500);  
 }
 
 /* Main Loop */
@@ -459,6 +469,35 @@ void Task_Led7Seg_Matrix_Code(void *parameter)
     vTaskDelay(100);
   }
 }
+
+void Task_Read_Sensor_Code(void *parameter) 
+{
+  for(;;){ 
+    if (action_get == GET) {
+      readSensor(device_get);
+      writeEnd();
+    }
+    vTaskDelay(100);
+  }
+}
+
+
+void Task_Read_Battery_Code(void *parameter) 
+{
+  float tmpVal = 0;
+  
+  for(;;){ 
+    if (action_get == BATTERY) {
+      ROBOX_LOG("\n Get Battery capacity");
+      tmpVal = (float)measureBattery(); 
+      writeHead();
+      writeSerial(BATTERY);
+      sendFloat(tmpVal);
+    }
+    vTaskDelay(100);
+  }
+}
+
 void robotStartup(void) 
 {
     FastLED.addLeds<NEOPIXEL, LED_DATA_PIN>(leds, NUM_LEDS); 
@@ -727,10 +766,6 @@ static void runModule(int device){
   int temp_buf[36];
   int pin = port;
   switch (device) {
-    case STOP: {
-      actionWhenStopRobot();
-      break;
-    }
     case JOYSTICK:{
       mode = IDE_MODE;
       int leftSpeed = readShort(8);
@@ -907,11 +942,11 @@ void readSensor(int device)
       value = (float)robotGetSoundSensor();
       break;
     }
-    case HEARTBIT: {
-      ROBOX_LOG("\n Get Battery capacity");
-      value = (float)measureBattery(); 
-      break;
-    }    
+//    case HEARTBIT: {
+//      ROBOX_LOG("\n Get Battery capacity");
+//      value = (float)measureBattery(); 
+//      break;
+//    }    
     case KEYBOARD: {
       ROBOX_LOG("\n Read state Keyboard --");
       cntEnterSleepMode = 0;
@@ -950,10 +985,16 @@ static void parseData(){
   int action = readBuffer(4);
   int device = readBuffer(5);
   ROBOX_LOG(" idx action device: %x %x %x", idx, action, device);
+  action_get = action;
   switch(action){
+    case STOP: {
+      actionWhenStopRobot();
+      break;
+    }
     case GET:{
-       readSensor(device);
-       writeEnd();
+       device_get = device;
+//       readSensor(device);
+//       writeEnd();
     } 
      break;
      case RUN:{       
