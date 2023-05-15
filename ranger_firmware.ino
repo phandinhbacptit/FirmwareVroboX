@@ -368,6 +368,7 @@ void loop()
 //       Serial.println(Ultra.distanceCm1(5000));
 //       delay(500);
 //       measureBattery();
+//       robotGetSoundSensor();
        serialHandle();
 //    _servo.attach(1);
 //    for (int i = 0; i < 200; i++) {
@@ -466,15 +467,15 @@ void robotStartup(void)
     leds[i] = CRGB::Black;
     FastLED.show();  
   
-//    robotSetLed(0, 255, 0, 0);
+    robotSetLed(0, 255, 0, 0);
 //    Buzzer.tone(830, 250);
-//    delay(100);    
-//    robotSetLed(0, 0, 255, 0);
+    delay(100);    
+    robotSetLed(0, 0, 255, 0);
 //    Buzzer.tone(554, 250);
-//    delay(100);    
-//    robotSetLed(0, 0, 0, 255);
+    delay(100);    
+    robotSetLed(0, 0, 0, 255);
 //    Buzzer.tone(740, 250);
-//    delay(100);
+    delay(100);
     robotSetLed(0, 0, 0, 0);
     robotSetJoyStick(1, 1);
     robotSetJoyStick(0, 0);
@@ -589,7 +590,7 @@ float robotGetColorSensor(void) {
 float robotGetSoundSensor(void)
 {
   float value = (float)(SoundSensor.readSoundSignal());
-  ROBOX_LOG("SoundSensor = %.1f", value);
+  ROBOX_LOG("\n SoundSensor = %.1f", value);
   return value;
 }
 
@@ -864,7 +865,7 @@ void readSensor(int device)
     {       
       cntEnterSleepMode = 0;
       ROBOX_LOG("\n Read ultrasonic sensor -- ");
-      value = (float)robotGetDistance();
+      value = (float)Ultra.distanceCm1(5000);
       break;
     }
     case LINEFOLLOWER:
