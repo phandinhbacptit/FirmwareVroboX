@@ -66,8 +66,8 @@
 int measureBatPin = 14;
 int adcValue = 0;
 float voltageMeas = 0;
-int device_get = 0;
-int action_get = 0;
+int device_global = 0;
+int action_global = 0;
 /* Global Config */
 /*---------------------------------------------------------------------------*/
 #if (1) 
@@ -200,7 +200,7 @@ VnLed7Seg           led7seg(LED7SEG);
 /*---------------------------------------------------------------------------*/
 BluetoothSerial SerialBT;
 TaskHandle_t TaskModeRobot;
-TaskHandle_t Task_Led7Seg_Matrix;
+TaskHandle_t Task_Run_Module;
 TaskHandle_t Task_Read_Sensor;
 TaskHandle_t Task_Read_Battery;
 
@@ -327,12 +327,12 @@ void setup()
   SerialBT.begin(String(DEVICE_NAME.c_str()));
   xTaskCreatePinnedToCore(Task_Mode_Code,"Task1",8024,NULL, 0,&TaskModeRobot,0);
   delay(500);   
-  xTaskCreatePinnedToCore(Task_Led7Seg_Matrix_Code,"Task_Led7Seg_Matrix_code",8024,NULL,0,&Task_Led7Seg_Matrix,0);  
+  xTaskCreatePinnedToCore(Task_Run_Module_Code,"Task_Run_Module_Code",8024,NULL,0,&Task_Run_Module,0);  
   delay(500);   
 
-  xTaskCreatePinnedToCore(Task_Read_Sensor_Code,"Task_Led7Seg_Matrix_code",8024,NULL,0,&Task_Read_Sensor,0);  
+  xTaskCreatePinnedToCore(Task_Read_Sensor_Code,"Task_Read_Sensor_Code",8024,NULL,0,&Task_Read_Sensor,0);  
   delay(500);  
-  xTaskCreatePinnedToCore(Task_Read_Battery_Code,"Task_Led7Seg_Matrix_code",8024,NULL,0,&Task_Read_Battery,0);  
+  xTaskCreatePinnedToCore(Task_Read_Battery_Code,"Task_Read_Battery_Code",8024,NULL,0,&Task_Read_Battery,0);  
   delay(500);  
 }
 
@@ -455,17 +455,20 @@ void Task_Mode_Code( void * parameter)
     delay(100);
   }
 }
-void Task_Led7Seg_Matrix_Code(void *parameter) 
+void Task_Run_Module_Code(void *parameter) 
 {
   for(;;){ 
-    if (stateRunLed7Seg) {
-      stateRunLed7Seg = false;
-      led7seg.setLed(data_led_7_seg[0], data_led_7_seg[1], data_led_7_seg[2], data_led_7_seg[3], led7segDuration);   
-    }        
-    if (stateRunMatrixLed) {
-      stateRunMatrixLed = false;
-      robotSetMatrix(maxtrix_display, matrixDuration);
-    }
+      if (action_global == RUN) {
+        runModule(device_global);
+      }
+//    if (stateRunLed7Seg) {
+//      stateRunLed7Seg = false;
+//      led7seg.setLed(data_led_7_seg[0], data_led_7_seg[1], data_led_7_seg[2], data_led_7_seg[3], led7segDuration);   
+//    }        
+//    if (stateRunMatrixLed) {
+//      stateRunMatrixLed = false;
+//      robotSetMatrix(maxtrix_display, matrixDuration);
+//    }
     vTaskDelay(100);
   }
 }
@@ -473,8 +476,8 @@ void Task_Led7Seg_Matrix_Code(void *parameter)
 void Task_Read_Sensor_Code(void *parameter) 
 {
   for(;;){ 
-    if (action_get == GET) {
-      readSensor(device_get);
+    if (action_global == GET) {
+      readSensor(device_global);
       writeEnd();
     }
     vTaskDelay(100);
@@ -487,12 +490,13 @@ void Task_Read_Battery_Code(void *parameter)
   float tmpVal = 0;
   
   for(;;){ 
-    if (action_get == BATTERY) {
+    if (action_global == BATTERY) {
       ROBOX_LOG("\n Get Battery capacity");
       tmpVal = (float)measureBattery(); 
       writeHead();
       writeSerial(BATTERY);
       sendFloat(tmpVal);
+      writeEnd();
     }
     vTaskDelay(100);
   }
@@ -807,6 +811,7 @@ static void runModule(int device){
       }
       matrixDuration = readBuffer(16);
       stateRunMatrixLed = true;
+      robotSetMatrix(maxtrix_display, matrixDuration);
       break;
     }
     case LINE_DETECT_MODE:
@@ -837,7 +842,7 @@ static void runModule(int device){
         }
         led7segDuration = readBuffer(12);
         ROBOX_LOG("RUN LED_7SEG: %d %d %d %d %d\n",readBuffer(8) - 30, readBuffer(9) - 30, readBuffer(10) - 30, readBuffer(11) - 30, readBuffer(12) - 30);
-//        led7seg.setLed(posLed, data);
+        led7seg.setLed(data_led_7_seg[0], data_led_7_seg[1], data_led_7_seg[2], data_led_7_seg[3], led7segDuration); 
       break;
     }
     case LED_TRACFFIC:{ 
@@ -985,21 +990,22 @@ static void parseData(){
   int action = readBuffer(4);
   int device = readBuffer(5);
   ROBOX_LOG(" idx action device: %x %x %x", idx, action, device);
-  action_get = action;
+  action_global = action;
   switch(action){
     case STOP: {
       actionWhenStopRobot();
       break;
     }
     case GET:{
-       device_get = device;
+       device_global = device;
 //       readSensor(device);
 //       writeEnd();
     } 
      break;
      case RUN:{       
        cntEnterSleepMode = 0;
-       runModule(device);
+       device_global = device;
+       //runModule(device);
        //callOK();
      }
       break;
