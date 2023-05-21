@@ -140,7 +140,6 @@ static void go_demo_srf05(void);
 #define RUN       2
 #define RESET     4
 #define START     5
-#define BATTERY   6
 
 
 #define ULTRASONIC_SENSOR       1
@@ -162,6 +161,7 @@ static void go_demo_srf05(void);
 #define RELAY                   19
 #define KEYBOARD                20
 #define TEMP_HUMI_SENSOR        21
+#define BATTERY                 60
 
 #define LINE_DETECT_MODE      100
 #define LINE_CIRCLE_MODE      101
@@ -282,7 +282,6 @@ int measureBattery()
   adcValue = analogRead(measureBatPin);// read the value from the analog channel
   voltage = (float)adcValue / 4096 * 3.3;
   percentCapacity = voltage * 100 / 3.3;
-  ROBOX_LOG("percentCapacity : %d\n", percentCapacity);
   if ((0 < percentCapacity) && (percentCapacity <= 5))
     sendvalue = 0;
   else if ((5 < percentCapacity) && (percentCapacity  <= 15))
@@ -305,8 +304,6 @@ int measureBattery()
     sendvalue = 90;
   else if (percentCapacity > 95)
     sendvalue = 100;
-    
-  ROBOX_LOG("senvalue : %d\n", sendvalue); 
   return sendvalue;
 }
 
@@ -515,7 +512,7 @@ void Task_Read_Battery_Code(void *parameter)
   float tmpVal = 0;
   
   for(;;){ 
-    if (action_global == BATTERY) {
+    if ((action_global == GET) && (device_global== BATTERY)) {
       ROBOX_LOG("\n Get Battery capacity");
       tmpVal = (float)measureBattery(); 
       Serial.print(tmpVal);
