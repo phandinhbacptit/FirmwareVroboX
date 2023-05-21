@@ -278,10 +278,36 @@ int measureBattery()
 {
   float voltage = 0;
   int percentCapacity = 0;
+  int sendvalue = 10;
   adcValue = analogRead(measureBatPin);// read the value from the analog channel
   voltage = (float)adcValue / 4096 * 3.3;
   percentCapacity = voltage * 100 / 3.3;
-  return percentCapacity;
+  ROBOX_LOG("percentCapacity : %d\n", percentCapacity);
+  if ((0 < percentCapacity) && (percentCapacity <= 5))
+    sendvalue = 0;
+  else if ((5 < percentCapacity) && (percentCapacity  <= 15))
+    sendvalue = 10;
+  else if ((15 < percentCapacity) && (percentCapacity  <= 25))
+    sendvalue = 20;
+  else if ((25 < percentCapacity) && (percentCapacity  <= 35))
+    sendvalue = 30;
+  else if ((35 < percentCapacity) && (percentCapacity  <= 45))
+    sendvalue = 40;
+  else if ((45 < percentCapacity) && (percentCapacity  <= 55))
+    sendvalue = 50;
+  else if ((55 < percentCapacity) && (percentCapacity  <= 65))
+    sendvalue = 60;
+  else if ((65 < percentCapacity) && (percentCapacity  <= 75))
+    sendvalue = 70;
+  else if ((75 < percentCapacity) && (percentCapacity  <= 85))
+    sendvalue = 80;
+  else if ((85 < percentCapacity) && (percentCapacity  <= 95))
+    sendvalue = 90;
+  else if (percentCapacity > 95)
+    sendvalue = 100;
+    
+  ROBOX_LOG("senvalue : %d\n", sendvalue); 
+  return sendvalue;
 }
 
 std::string to_string(int x) {
@@ -484,7 +510,6 @@ void Task_Read_Sensor_Code(void *parameter)
   }
 }
 
-
 void Task_Read_Battery_Code(void *parameter) 
 {
   float tmpVal = 0;
@@ -493,6 +518,7 @@ void Task_Read_Battery_Code(void *parameter)
     if (action_global == BATTERY) {
       ROBOX_LOG("\n Get Battery capacity");
       tmpVal = (float)measureBattery(); 
+      Serial.print(tmpVal);
       writeHead();
       writeSerial(BATTERY);
       sendFloat(tmpVal);
@@ -527,6 +553,7 @@ void robotStartup(void)
 }
 void actionWhenStopRobot(void) 
 {
+    ROBOX_LOG("\n Stop robot");
     robotSetLed(0, 0, 0, 0);
     robotSetJoyStick(1, 1);
     robotSetJoyStick(0, 0);
@@ -841,7 +868,7 @@ static void runModule(int device){
           data_led_7_seg[i] = readBuffer(8 + i) - 30;  
         }
         led7segDuration = readBuffer(12);
-        ROBOX_LOG("RUN LED_7SEG: %d %d %d %d %d\n",readBuffer(8) - 30, readBuffer(9) - 30, readBuffer(10) - 30, readBuffer(11) - 30, readBuffer(12) - 30);
+        ROBOX_LOG("RUN LED_7SEG: %d %d %d %d %d\n",readBuffer(8) - 30, readBuffer(9) - 30, readBuffer(10) - 30, readBuffer(11) - 30, readBuffer(12));
         led7seg.setLed(data_led_7_seg[0], data_led_7_seg[1], data_led_7_seg[2], data_led_7_seg[3], led7segDuration); 
       break;
     }
