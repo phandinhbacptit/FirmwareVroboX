@@ -845,10 +845,10 @@ static void runModule(int device){
     case LED_7SEG: { 
         stateRunLed7Seg = true;
         for (int i = 0; i < 4; i++) {
-          data_led_7_seg[i] = readBuffer(8 + i) - 30;  
+          data_led_7_seg[i] = readBuffer(8 + i);  
         }
         led7segDuration = readBuffer(12);
-        ROBOX_LOG("RUN LED_7SEG: %d %d %d %d %d\n",readBuffer(8) - 30, readBuffer(9) - 30, readBuffer(10) - 30, readBuffer(11) - 30, readBuffer(12));
+        ROBOX_LOG("RUN LED_7SEG: %d %d %d %d %d\n",readBuffer(8), readBuffer(9), readBuffer(10), readBuffer(11), readBuffer(12));
         led7seg.setLed(data_led_7_seg[0], data_led_7_seg[1], data_led_7_seg[2], data_led_7_seg[3], led7segDuration); 
       break;
     }
