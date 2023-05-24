@@ -95,6 +95,7 @@ BLECharacteristic *pCharacteristic;
 BLEServer *pServer;
 bool stateBle = false;
 uint8_t robotFeedback[9] = {0xff, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0D, 0x0A};
+uint8_t robotFeedbackBattery[9] = {0xff, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0D, 0x0A};
 
 volatile int cntEnterSleepMode;
 hw_timer_t * timerCntEnterSleepMode = NULL;
@@ -203,6 +204,13 @@ TaskHandle_t TaskModeRobot;
 TaskHandle_t Task_Run_Module;
 TaskHandle_t Task_Read_Sensor;
 TaskHandle_t Task_Read_Battery;
+
+union
+{
+  byte byteVal[4];
+  float floatVal;
+  long longVal;
+}val;
 
 /* Setup function */
 /*---------------------------------------------------------------------------*/
@@ -355,8 +363,6 @@ void setup()
 
   xTaskCreatePinnedToCore(Task_Read_Sensor_Code,"Task_Read_Sensor_Code",8024,NULL,0,&Task_Read_Sensor,0);  
   delay(500);  
-  xTaskCreatePinnedToCore(Task_Read_Battery_Code,"Task_Read_Battery_Code",8024,NULL,0,&Task_Read_Battery,0);  
-  delay(500);  
 }
 
 /* Main Loop */
@@ -501,24 +507,6 @@ void Task_Read_Sensor_Code(void *parameter)
   for(;;){ 
     if (action_global == GET) {
       readSensor(device_global);
-      writeEnd();
-    }
-    vTaskDelay(100);
-  }
-}
-
-void Task_Read_Battery_Code(void *parameter) 
-{
-  float tmpVal = 0;
-  
-  for(;;){ 
-    if ((action_global == GET) && (device_global== BATTERY)) {
-      ROBOX_LOG("\n Get Battery capacity");
-      tmpVal = (float)measureBattery(); 
-      Serial.print(tmpVal);
-      writeHead();
-      writeSerial(BATTERY);
-      sendFloat(tmpVal);
       writeEnd();
     }
     vTaskDelay(100);
@@ -684,12 +672,7 @@ unsigned char prevc = 0;
 byte index2          = 0;
 byte dataLen        = 0;
 uint8_t command_index = 0;
-union
-{
-  byte byteVal[4];
-  float floatVal;
-  long longVal;
-}val;
+
 
 static void writeBuffer(int index1, unsigned char c){
   buffer[index1] = c;
@@ -902,10 +885,16 @@ static void runModule(int device){
 
 void sendFloat(float value)
 {  
+  
+  Serial.print("val--");
   val.floatVal = value;
+  Serial.print(val.byteVal[0]);
   writeSerial(val.byteVal[0]);
+  Serial.print(val.byteVal[1]);
   writeSerial(val.byteVal[1]);
+  Serial.print(val.byteVal[2]);
   writeSerial(val.byteVal[2]);
+  Serial.print(val.byteVal[3]);
   writeSerial(val.byteVal[3]);
 }
 
@@ -971,11 +960,10 @@ void readSensor(int device)
       value = (float)robotGetSoundSensor();
       break;
     }
-//    case HEARTBIT: {
-//      ROBOX_LOG("\n Get Battery capacity");
-//      value = (float)measureBattery(); 
-//      break;
-//    }    
+    case BATTERY: {
+      value = (float)measureBattery(); 
+      break;
+    }    
     case KEYBOARD: {
       ROBOX_LOG("\n Read state Keyboard --");
       cntEnterSleepMode = 0;
@@ -1228,6 +1216,10 @@ class BLERobotCallbacks: public BLECharacteristicCallbacks {
     }
 
     void onRead(BLECharacteristic *pCharacteristic) {
+        Serial.printf("RobotWrite:");
+        for(int i = 0; i< 9; i++) {
+          ROBOX_LOG("%x ", robotFeedback[i]);
+        }
         pCharacteristic->setValue(robotFeedback, 9);
     }
 };
