@@ -117,9 +117,9 @@ static unsigned int data_led_7_seg[4] = {0,0,0,0};
 static unsigned int maxtrix_display[8] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 static unsigned int ringled_display[12] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 static unsigned int fbSensorData[9] = {0xff, 0x55, 0x01, 0x02, 0x03, 0x04, 0x05, 0x0D, 0x0A};
-std::string defaultName = "VROBOX_1234";
+std::string defaultName = "VROBOX_00000";
 int addrSaveNameRobot = 0;
-std::string DEVICE_NAME = "VROBOX_0711";
+std::string DEVICE_NAME = "VROBOX_00000";
 std::string BASE_NAME = "VROBOX_";
 String curName ="";
 /* Function Prototype */
@@ -866,9 +866,19 @@ static void runModule(int device){
       break;
     }
     case NAMEROBOT: {
-      int idRobot = (readBuffer(4) << 24) | (readBuffer(5) << 16) | (readBuffer(6) << 8) | readBuffer(7);
+      int idRobot = (readBuffer(6) << 24) | (readBuffer(7) << 16) | (readBuffer(8) << 8) | readBuffer(9);
+      Serial.print("ID_get: ");
+      Serial.print(readBuffer(6));
+      Serial.print(readBuffer(7));
+      Serial.print(readBuffer(8));
+      Serial.print(readBuffer(9));
+      Serial.print(" all: ");
+      Serial.println(idRobot);
       BASE_NAME = BASE_NAME + to_string(idRobot);
+      Serial.print("Remane Robot: ");
+      Serial.println(String(BASE_NAME.c_str()));
       writeStringToEEPROM(addrSaveNameRobot, String(BASE_NAME.c_str()));
+      BASE_NAME = "VROBOX_";
       EEPROM.commit();
       curName = readStringFromEEPROM(addrSaveNameRobot);
       if (curName != "") {
@@ -885,8 +895,6 @@ static void runModule(int device){
 
 void sendFloat(float value)
 {  
-  
-  Serial.print("val--");
   val.floatVal = value;
   Serial.print(val.byteVal[0]);
   writeSerial(val.byteVal[0]);
