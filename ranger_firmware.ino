@@ -330,7 +330,6 @@ void setup()
   robotStartup();
 	Serial.begin(115200);
   EEPROM.begin(FLASH_MEMORY_SIZE);
-  BleInit();
   _servo.attach(1);    
   pinMode(measureBatPin, INPUT);
 
@@ -341,20 +340,16 @@ void setup()
 //  timerAlarmEnable(timerCntEnterSleepMode);
 //  print_wakeup_reason();
 /*_________________________________________________*/
-//  BASE_NAME = BASE_NAME + to_string(1235);
-//  writeStringToEEPROM(addrSaveNameRobot, String(BASE_NAME.c_str()));
-//  EEPROM.commit();
-//
-//  curName = readStringFromEEPROM(addrSaveNameRobot);
-//
-//  Serial.println(curName);
-//  if (tmpName != "") {
-//    Serial.println(tmpName);
-//    DEVICE_NAME = std::string(tmpName.c_str());
-//  }
-//  else
-//    DEVICE_NAME = defaultName;
+  curName = readStringFromEEPROM(addrSaveNameRobot);
+  Serial.print("Init name: " + curName);
+  if (curName != "") {
+    Serial.println(curName);
+    DEVICE_NAME = std::string(curName.c_str());
+  }
+  else
+    DEVICE_NAME = defaultName;
 
+  BleInit();
   SerialBT.begin(String(DEVICE_NAME.c_str()));
   xTaskCreatePinnedToCore(Task_Mode_Code,"Task1",8024,NULL, 0,&TaskModeRobot,0);
   delay(500);   
@@ -867,16 +862,9 @@ static void runModule(int device){
     }
     case NAMEROBOT: {
       int idRobot = (readBuffer(6) << 24) | (readBuffer(7) << 16) | (readBuffer(8) << 8) | readBuffer(9);
-      Serial.print("ID_get: ");
-      Serial.print(readBuffer(6));
-      Serial.print(readBuffer(7));
-      Serial.print(readBuffer(8));
-      Serial.print(readBuffer(9));
-      Serial.print(" all: ");
-      Serial.println(idRobot);
+      //Serial.println("ID_get: " + idRobot);
       BASE_NAME = BASE_NAME + to_string(idRobot);
-      Serial.print("Remane Robot: ");
-      Serial.println(String(BASE_NAME.c_str()));
+      Serial.println("Name set" + String(BASE_NAME.c_str()));
       writeStringToEEPROM(addrSaveNameRobot, String(BASE_NAME.c_str()));
       BASE_NAME = "VROBOX_";
       EEPROM.commit();
@@ -884,11 +872,11 @@ static void runModule(int device){
       if (curName != "") {
         DEVICE_NAME = std::string(curName.c_str());
       }
-      else
+      else {
         DEVICE_NAME = defaultName;
-        BleInit();
-        SerialBT.begin(String(DEVICE_NAME.c_str()));
-        break;
+      }
+      BleReinit();
+      break;
     }
   }
 }
@@ -1263,4 +1251,9 @@ void BleInit(void)
   pService->start();
 
   BleAdvertising();
+}
+void BleReinit()
+{
+  BLEDevice::deinit(true);
+  BleInit();
 }
