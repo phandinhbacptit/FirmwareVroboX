@@ -16,45 +16,6 @@
 #include <VnServo.h>
 #include <VnSoundSensor.h>
 #include <VnUltrasonicSensor.h>
-
-#include <VbotBoard.h>
-#include <VbotDCMotor.h>
-#include <Vn74hc595.h>
-#include <VnBle.h>
-#include <VnButton.h>
-#include <VnBuzzer.h>
-#include <VnConfig.h>
-#include <VnDCMotor.h>
-#include <VnIrRemote.h>
-#include <VnLedMatrixDefine.h>
-#include <VnLightSensor.h>
-#include <VnLineFollower.h>
-#include <VnMpu6050.h>
-#include <VnPort.h>
-#include <VnRGB.h>
-#include <VnServo.h>
-#include <VnSoundSensor.h>
-#include <VnUltrasonicSensor.h>
-
-#include <VbotBoard.h>
-#include <VbotDCMotor.h>
-#include <Vn74hc595.h>
-#include <VnBle.h>
-#include <VnButton.h>
-#include <VnBuzzer.h>
-#include <VnConfig.h>
-#include <VnDCMotor.h>
-#include <VnIrRemote.h>
-#include <VnLedMatrixDefine.h>
-#include <VnLightSensor.h>
-#include <VnLineFollower.h>
-#include <VnMpu6050.h>
-#include <VnPort.h>
-#include <VnRGB.h>
-#include <VnServo.h>
-#include <VnSoundSensor.h>
-#include <VnUltrasonicSensor.h>
-#include <VnColorSensor.h>
 #include <VnLed.h>
 #include <VnLedTraffic.h>
 #include <VnRelay.h>
@@ -340,6 +301,9 @@ void setup()
 //  timerAlarmEnable(timerCntEnterSleepMode);
 //  print_wakeup_reason();
 /*_________________________________________________*/
+  
+//  writeStringToEEPROM(addrSaveNameRobot, String(BASE_NAME.c_str()));
+//  delay(100);    
   curName = readStringFromEEPROM(addrSaveNameRobot);
   Serial.print("Init name: " + curName);
   if (curName != "") {
@@ -672,7 +636,12 @@ uint8_t command_index = 0;
 static void writeBuffer(int index1, unsigned char c){
   buffer[index1] = c;
 }
-
+static void clearBuffer()
+{
+  for (int i = 0; i < 64; i++) {
+    buffer[i] = 0;  
+  }
+}
 static void readSerial(){
   isAvailable = false;
   if(SerialBT.available()>0){
@@ -879,6 +848,7 @@ static void runModule(int device){
       break;
     }
   }
+  //clearBuffer();
 }
 
 void sendFloat(float value)
