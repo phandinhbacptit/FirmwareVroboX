@@ -103,7 +103,6 @@ static void go_demo_srf05(void);
 #define RESET     4
 #define START     5
 
-
 #define ULTRASONIC_SENSOR       1
 #define LINEFOLLOWER            2
 #define LIGHT_SENSOR_VALUE      3
@@ -771,7 +770,10 @@ static void runModule(int device){
     case TONE:{
       int freq = readShort(8);  
       int duration = readShort(10);
-      robotSetTone(freq, duration);
+      if ((freq != 0) && (duration != 0)) {
+        robotSetTone(freq, duration);
+        clearBuffer();
+      }
       break;
     }
     case LEDMATRIX: {
