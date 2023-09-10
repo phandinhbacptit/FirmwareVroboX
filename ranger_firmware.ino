@@ -23,7 +23,7 @@
 #include <VnLed7Seg.h>
 #include <EEPROM.h>
 
-#define FLASH_MEMORY_SIZE 13
+#define FLASH_MEMORY_SIZE 20
 int measureBatPin = 14;
 int adcValue = 0;
 float voltageMeas = 0;
@@ -50,6 +50,17 @@ int action_global = 0;
 #include <string.h>
 #include <sstream>
 
+
+enum typeRobot {
+  Ranzer,
+  none,
+  Helicopter,
+  Avatar,
+  Dogger,
+  defaulf
+};
+int signLeft = 1, signRight = 1;
+int nameRobot = Helicopter;
 #define SERVICE_UUID      "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define ROBOT_UUID        "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 BLECharacteristic *pCharacteristic;
@@ -81,7 +92,7 @@ static unsigned int fbSensorData[9] = {0xff, 0x55, 0x01, 0x02, 0x03, 0x04, 0x05,
 std::string defaultName = "VROBOX_00000";
 int addrSaveNameRobot = 0;
 std::string DEVICE_NAME = "VROBOX_00000";
-std::string BASE_NAME = "VROBOX_";
+std::string BASE_NAME = "VROBOX_00000";
 String curName ="";
 /* Function Prototype */
 /*---------------------------------------------------------------------------*/
@@ -203,8 +214,6 @@ void convertint2byte(int value)
   byte buf[2];
   buf[0] = (byte) (value & 0xff);
   buf[1] = (byte) ((value >> 8) & 0xff);
-  ROBOX_LOG("Byte1:%x ", buf[0]);
-  ROBOX_LOG("Byte2:%x ", buf[1]); 
 }
 void writeStringToEEPROM(int addrOffset, const String &strToWrite)
 {
@@ -285,6 +294,37 @@ std::string to_string(int x) {
   return str;
 }
 
+void configRobot(int typeRobot) {
+  switch (typeRobot) {
+      case defaulf:
+        Serial.println("defaulf");
+        signLeft = 1;
+        signRight = 1;
+      break;
+      case Ranzer:
+        Serial.println("Ranzer");
+        signLeft = 1;
+        signRight = 1;
+      break;
+      case Helicopter:
+        Serial.println("Helicopter");
+        signLeft = -1;
+        signRight = 1;
+      break;
+      case Avatar:
+        Serial.println("Avatar");
+        signLeft = -1;
+        signRight = 1;
+      break;  
+      case Dogger:
+        Serial.println("Dogger");
+        signLeft = 1;
+        signRight = 1;
+      break;  
+    }
+}
+
+String getTypeRobot ="";
 void setup()
 {
   robotStartup();
@@ -300,9 +340,21 @@ void setup()
 //  timerAlarmEnable(timerCntEnterSleepMode);
 //  print_wakeup_reason();
 /*_________________________________________________*/
-  
-//  writeStringToEEPROM(addrSaveNameRobot, String(BASE_NAME.c_str()));
-//  delay(100);    
+  curName = readStringFromEEPROM(addrSaveNameRobot);
+  getTypeRobot = curName.substring(0, 4);
+
+  if (getTypeRobot == "RAZE")
+    nameRobot = Ranzer;     
+  else if (getTypeRobot == "HELI")
+    nameRobot = Helicopter;     
+  else if (getTypeRobot == "AVAT")
+    nameRobot = Avatar;     
+  else if (getTypeRobot == "DOGG")
+    nameRobot = Dogger;
+  Serial.println("getTypeRobot: " + getTypeRobot + nameRobot);    
+  configRobot(nameRobot);
+  writeStringToEEPROM(addrSaveNameRobot, String(BASE_NAME.c_str()));
+  delay(100);    
   curName = readStringFromEEPROM(addrSaveNameRobot);
   Serial.print("Init name: " + curName);
   if (curName != "") {
@@ -318,7 +370,6 @@ void setup()
   delay(500);   
   xTaskCreatePinnedToCore(Task_Run_Module_Code,"Task_Run_Module_Code",8024,NULL,0,&Task_Run_Module,0);  
   delay(500);   
-
   xTaskCreatePinnedToCore(Task_Read_Sensor_Code,"Task_Read_Sensor_Code",8024,NULL,0,&Task_Read_Sensor,0);  
   delay(500);  
 }
@@ -379,8 +430,8 @@ void loop()
 //       Serial.print(ring_leds);
 //       Vn74hc595           Matrix(MAXTRIX);
 //       Serial.println("after: ");
-//       Serial.print(ring_leds);
-
+//       Serial.print("\n ring_leds");
+//       delay(1000);
   // disconnecting
   if (!stateConnected && oldstateConnected) {
     delay(500); // give the bluetooth stack the chance to get things ready
@@ -448,14 +499,6 @@ void Task_Run_Module_Code(void *parameter)
       if (action_global == RUN) {
         runModule(device_global);
       }
-//    if (stateRunLed7Seg) {
-//      stateRunLed7Seg = false;
-//      led7seg.setLed(data_led_7_seg[0], data_led_7_seg[1], data_led_7_seg[2], data_led_7_seg[3], led7segDuration);   
-//    }        
-//    if (stateRunMatrixLed) {
-//      stateRunMatrixLed = false;
-//      robotSetMatrix(maxtrix_display, matrixDuration);
-//    }
     vTaskDelay(100);
   }
 }
@@ -503,8 +546,12 @@ void actionWhenStopRobot(void)
     robotSetRingLed(ringled_display);
     robotSetMatrix(maxtrix_display, 0);
 }
+
 void robotSetJoyStick(int leftSpeed, int rightSpeed)
 {
+  configRobot(nameRobot);
+  leftSpeed = signLeft * leftSpeed;
+  rightSpeed = signRight * rightSpeed;
   DcMotorL.run(leftSpeed, MOTOR2);
   DcMotorR.run(rightSpeed, MOTOR3);
   ROBOX_LOG("JOYSTICK leftSpeed=%d, rightSpeed=%d\n", leftSpeed, rightSpeed);
@@ -646,7 +693,7 @@ static void readSerial(){
   if(SerialBT.available()>0){
     isAvailable = true;
     serialRead = SerialBT.read();
-    ROBOX_LOG("%x", serialRead);
+//    ROBOX_LOG("%x", serialRead);
   }
 }
 
@@ -707,17 +754,17 @@ static void callOK(){
     writeEnd();
     
     robotSetLed(0, 0x00, 0xff, 0x00);
-    robotSetJoyStick(200, 200);
-    Buzzer.tone(830, 250);
+//    robotSetJoyStick(200, 200);
+//    Buzzer.tone(830, 250);
     robotSetLed(0, 0x00, 0x00, 0xff);
-    robotSetJoyStick(-200, -200);
-    Buzzer.tone(622, 250);
+//    robotSetJoyStick(-200, -200);
+//    Buzzer.tone(622, 250);
     robotSetLed(0, 0x00, 0x00, 0x00);
     robotSetJoyStick(0, -0);
     SerialBT.flush();
   if(SerialBT.available()>0){
     serialRead = SerialBT.read();
-    ROBOX_LOG("start: %x", serialRead);
+//    ROBOX_LOG("start: %x", serialRead);
   }
 }
 
@@ -727,9 +774,7 @@ static unsigned char readBuffer(int index){
 
 static short readShort(int idx){
   valShort.byteVal[0] = readBuffer(idx);
-  ROBOX_LOG("Byte1:%x ", valShort.byteVal[0]);
   valShort.byteVal[1] = readBuffer(idx+1);
-  ROBOX_LOG("Byte2:%x ", valShort.byteVal[1]);
   return valShort.shortVal; 
 }
 int count = 0;
@@ -832,8 +877,29 @@ static void runModule(int device){
       break;
     }
     case NAMEROBOT: {
-      int idRobot = (readBuffer(6) << 24) | (readBuffer(7) << 16) | (readBuffer(8) << 8) | readBuffer(9);
-      //Serial.println("ID_get: " + idRobot);
+      int typeRobot = readBuffer(6);
+      int idRobot = (readBuffer(7) << 24) | (readBuffer(8) << 16) | (readBuffer(9) << 8) | readBuffer(10);
+      Serial.println("typeRobot: " + typeRobot);
+      switch(typeRobot) {
+           case Ranzer:
+           BASE_NAME = "RANZER_";
+           nameRobot = Ranzer;
+           break;
+           case Helicopter:
+           BASE_NAME = "HELI_"; 
+           nameRobot = Helicopter;
+           break;
+           case Avatar:
+           BASE_NAME = "AVATAR_";
+           nameRobot = Avatar;
+           break;
+           case Dogger:
+           BASE_NAME = "DOGGER_";
+           nameRobot = Dogger;
+           break;
+           default:
+           break;
+      }      
       BASE_NAME = BASE_NAME + to_string(idRobot);
       Serial.println("Name set" + String(BASE_NAME.c_str()));
       writeStringToEEPROM(addrSaveNameRobot, String(BASE_NAME.c_str()));
@@ -885,8 +951,8 @@ void readSensor(int device)
     case ULTRASONIC_SENSOR:
     {       
       cntEnterSleepMode = 0;
-      ROBOX_LOG("\n Read ultrasonic sensor -- ");
       value = (float)Ultra.distanceCm1(5000);
+      ROBOX_LOG("\n Read ultrasonic sensor -- :%d", value);
       break;
     }
     case LINEFOLLOWER:
@@ -969,7 +1035,7 @@ static void parseData(){
   command_index = (uint8_t)idx;
   int action = readBuffer(4);
   int device = readBuffer(5);
-  ROBOX_LOG(" idx action device: %x %x %x", idx, action, device);
+//  ROBOX_LOG(" idx action device: %x %x %x", idx, action, device);
   action_global = action;
   switch(action){
     case STOP: {
@@ -1133,11 +1199,14 @@ static void go_demo_srf05_lighsensor(void)
 
 static void go_demo_srf05(void)
 {
-    if (Ultra.distanceCm1(200) >= 10) {
+    if (Ultra.distanceCm1(200) >= 20) {
       DcMotorL.run(245, MOTOR2);
       DcMotorR.run(-245, MOTOR3);
     }
     else{
+      DcMotorL.run(0, MOTOR2);
+      DcMotorR.run(0, MOTOR3);
+      delay(50);
       DcMotorL.run(-245, MOTOR2);
       DcMotorR.run(255, MOTOR3);
       delay(500);
@@ -1166,13 +1235,13 @@ class BLERobotCallbacks: public BLECharacteristicCallbacks {
       uint8_t charBuf[64];  
       int length = 0;    
       std::string value = pCharacteristic->getValue();
-
-      ROBOX_LOG("BLE write: %d", value);
-      for (int i = 0; i < value.length(); i++) {
-        charBuf[i] = value[i];
-        ROBOX_LOG("%x ", charBuf[i]);
-      }
-      ROBOX_LOG("\n");
+//
+//      ROBOX_LOG("BLE write: %d", value);
+//      for (int i = 0; i < value.length(); i++) {
+//        charBuf[i] = value[i];
+//        ROBOX_LOG("%x ", charBuf[i]);
+//      }
+//      ROBOX_LOG("\n");
     if (value[0] == 0xff && value[1] == 0x55) {
         length = value[2];
         for (int index = 2; index < value.length(); index++) {
@@ -1184,10 +1253,10 @@ class BLERobotCallbacks: public BLECharacteristicCallbacks {
     }
 
     void onRead(BLECharacteristic *pCharacteristic) {
-        Serial.printf("RobotWrite:");
-        for(int i = 0; i< 9; i++) {
-          ROBOX_LOG("%x ", robotFeedback[i]);
-        }
+//        Serial.printf("RobotWrite:");
+//        for(int i = 0; i< 9; i++) {
+//          ROBOX_LOG("%x ", robotFeedback[i]);
+//        }
         pCharacteristic->setValue(robotFeedback, 9);
     }
 };
