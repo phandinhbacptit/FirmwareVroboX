@@ -89,10 +89,10 @@ static unsigned int data_led_7_seg[4] = {0,0,0,0};
 static unsigned int maxtrix_display[8] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 static unsigned int ringled_display[12] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 static unsigned int fbSensorData[9] = {0xff, 0x55, 0x01, 0x02, 0x03, 0x04, 0x05, 0x0D, 0x0A};
-std::string defaultName = "VROBOX_00000";
+std::string defaultName = "RANZER_00000";
 int addrSaveNameRobot = 0;
-std::string DEVICE_NAME = "VROBOX_00000";
-std::string BASE_NAME = "VROBOX_00000";
+std::string DEVICE_NAME = "RANZER_00000";
+std::string BASE_NAME = "RANZER_00000";
 String curName ="";
 /* Function Prototype */
 /*---------------------------------------------------------------------------*/
@@ -303,8 +303,8 @@ void configRobot(int typeRobot) {
       break;
       case Ranzer:
         Serial.println("Ranzer");
-        signLeft = 1;
-        signRight = 1;
+        signLeft = -1;
+        signRight = -1;
       break;
       case Helicopter:
         Serial.println("Helicopter");
@@ -328,9 +328,13 @@ String getTypeRobot ="";
 void setup()
 {
   robotStartup();
+  delay(100);   
 	Serial.begin(115200);
+  delay(100);   
   EEPROM.begin(FLASH_MEMORY_SIZE);
-  _servo.attach(1);    
+  delay(100);   
+  _servo.attach(1); 
+  delay(100);      
   pinMode(measureBatPin, INPUT);
 
 /*__________For Sleep mode___________________________*/
@@ -343,7 +347,7 @@ void setup()
   curName = readStringFromEEPROM(addrSaveNameRobot);
   getTypeRobot = curName.substring(0, 4);
 
-  if (getTypeRobot == "RAZE")
+  if (getTypeRobot == "RANZ")
     nameRobot = Ranzer;     
   else if (getTypeRobot == "HELI")
     nameRobot = Helicopter;     
@@ -353,8 +357,8 @@ void setup()
     nameRobot = Dogger;
   Serial.println("getTypeRobot: " + getTypeRobot + nameRobot);    
   configRobot(nameRobot);
-  writeStringToEEPROM(addrSaveNameRobot, String(BASE_NAME.c_str()));
-  delay(100);    
+//  writeStringToEEPROM(addrSaveNameRobot, String(BASE_NAME.c_str()));
+//  delay(100);    
   curName = readStringFromEEPROM(addrSaveNameRobot);
   Serial.print("Init name: " + curName);
   if (curName != "") {
@@ -365,7 +369,9 @@ void setup()
     DEVICE_NAME = defaultName;
 
   BleInit();
+  delay(100);
   SerialBT.begin(String(DEVICE_NAME.c_str()));
+  delay(100);
   xTaskCreatePinnedToCore(Task_Mode_Code,"Task1",8024,NULL, 0,&TaskModeRobot,0);
   delay(500);   
   xTaskCreatePinnedToCore(Task_Run_Module_Code,"Task_Run_Module_Code",8024,NULL,0,&Task_Run_Module,0);  
@@ -417,7 +423,7 @@ void loop()
 //       delay(500);
 //       measureBattery();
 //       robotGetSoundSensor();
-       serialHandle();
+//       serialHandle();
 //    _servo.attach(1);
 //    for (int i = 0; i < 200; i++) {
 //      _servo.rotate(i);
@@ -444,8 +450,6 @@ void loop()
     // do stuff here on connecting
     oldstateConnected = stateConnected;
   }
-
-
 /*___________For sleep mode______________________*/
 //  if (cntEnterSleepMode >= 180) {
 //    actionBeforeSleep();
@@ -539,6 +543,7 @@ void robotStartup(void)
 }
 void actionWhenStopRobot(void) 
 {
+    mode = IDE_MODE;
     ROBOX_LOG("\n Stop robot");
     robotSetLed(0, 0, 0, 0);
     robotSetJoyStick(1, 1);
@@ -754,11 +759,11 @@ static void callOK(){
     writeEnd();
     
     robotSetLed(0, 0x00, 0xff, 0x00);
-//    robotSetJoyStick(200, 200);
-//    Buzzer.tone(830, 250);
+    robotSetJoyStick(200, 200);
+    Buzzer.tone(830, 250);
     robotSetLed(0, 0x00, 0x00, 0xff);
-//    robotSetJoyStick(-200, -200);
-//    Buzzer.tone(622, 250);
+    robotSetJoyStick(-200, -200);
+    Buzzer.tone(622, 250);
     robotSetLed(0, 0x00, 0x00, 0x00);
     robotSetJoyStick(0, -0);
     SerialBT.flush();
@@ -1200,18 +1205,14 @@ static void go_demo_srf05_lighsensor(void)
 static void go_demo_srf05(void)
 {
     if (Ultra.distanceCm1(200) >= 20) {
-      DcMotorL.run(245, MOTOR2);
-      DcMotorR.run(-245, MOTOR3);
+      robotSetJoyStick(245,-245);
     }
     else{
-      DcMotorL.run(0, MOTOR2);
-      DcMotorR.run(0, MOTOR3);
+      robotSetJoyStick(0,0);
       delay(50);
-      DcMotorL.run(-245, MOTOR2);
-      DcMotorR.run(255, MOTOR3);
+      robotSetJoyStick(-245,255);
       delay(500);
-      DcMotorL.run(-255, MOTOR2);
-      DcMotorR.run(-255, MOTOR3);
+      robotSetJoyStick(-255,-255);
       delay(1000);
     }
 }
@@ -1277,7 +1278,7 @@ void BleAdvertising(void)
 void BleInit(void)
 {
   BLEDevice::init(DEVICE_NAME);
-  BLEDevice::setPower(ESP_PWR_LVL_P9);
+  BLEDevice::setPower(ESP_PWR_LVL_P1);
   BLEDevice::setMTU(512);
   pServer = BLEDevice::createServer();
 //  BLEServer *pServer = BLEDevice::createServer();
