@@ -417,13 +417,13 @@ void loop()
 //       led7seg.setLed(LED7SEG3, 10);      
 //       led7seg.setLed(LED7SEG4, 'C');
 //       delay(100);
-
-//        VnUltrasonicSensor  Ultra(ULTRA);
+//
+//       VnUltrasonicSensor  Ultra(ULTRA);
 //       Serial.println(Ultra.distanceCm1(5000));
-//       delay(500);
+//       delay(50);
 //       measureBattery();
 //       robotGetSoundSensor();
-//       serialHandle();
+       serialHandle();
 //    _servo.attach(1);
 //    for (int i = 0; i < 200; i++) {
 //      _servo.rotate(i);
@@ -488,13 +488,13 @@ void Task_Mode_Code( void * parameter)
       }
     case SRF05_RUN_MODE: {
         go_demo_srf05();
-        ROBOX_LOG("SRF05_RUN_MODE\n");
+        //ROBOX_LOG("SRF05_RUN_MODE\n");
         break;
     }
     default:
       break;
     }
-    delay(100);
+    delay(50);
   }
 }
 void Task_Run_Module_Code(void *parameter) 
@@ -559,7 +559,7 @@ void robotSetJoyStick(int leftSpeed, int rightSpeed)
   rightSpeed = signRight * rightSpeed;
   DcMotorL.run(leftSpeed, MOTOR2);
   DcMotorR.run(rightSpeed, MOTOR3);
-  ROBOX_LOG("JOYSTICK leftSpeed=%d, rightSpeed=%d\n", leftSpeed, rightSpeed);
+ // ROBOX_LOG("JOYSTICK leftSpeed=%d, rightSpeed=%d\n", leftSpeed, rightSpeed);
 }
 
 static int rgb2HexColor(int r, int g, int b)
@@ -849,7 +849,7 @@ static void runModule(int device){
     case SERVO_RUN: {
       int angle = (readBuffer(8)) << 8 | readBuffer(9);
       ROBOX_LOG("Angle=%d\n", angle);
-      _servo.rotate(angle);
+      _servo.rotate(angle + 30);
       break;
     }
     case LED_SINGLE  :{ 
@@ -1100,23 +1100,27 @@ static void soundEffect(void)
   Serial.println(state);
   switch (state) {
     case 1:
-      DcMotorL.run(170, MOTOR2);
-      DcMotorR.run(-170, MOTOR3);
+      robotSetJoyStick(170,-170);
+//      DcMotorL.run(170, MOTOR2);
+//      DcMotorR.run(-170, MOTOR3);
       delay(1000);
       break;
     case 2:
-      DcMotorL.run(-170, MOTOR2);
-      DcMotorR.run(170, MOTOR3);
+      robotSetJoyStick(-170,170);
+//      DcMotorL.run(-170, MOTOR2);
+//      DcMotorR.run(170, MOTOR3);
       delay(1000);
       break;
     case 3:
-      DcMotorL.run(170, MOTOR2);
-      DcMotorR.run(170, MOTOR3);
+      robotSetJoyStick(170,170);
+//      DcMotorL.run(170, MOTOR2);
+//      DcMotorR.run(170, MOTOR3);
       delay(1000);
       break;
     case 4:  
-      DcMotorL.run(-170, MOTOR2);
-      DcMotorR.run(-170, MOTOR3);
+      robotSetJoyStick(-170,-170);
+//      DcMotorL.run(-170, MOTOR2);
+//      DcMotorR.run(-170, MOTOR3);
       delay(1000);
       break;
     case 5:  
@@ -1144,23 +1148,27 @@ static void robotFollowingLine(void)
 {
   if ((LINE.readSensor1() == 0) && (LINE.readSensor2() == 0)) {
       //Serial.println("find");
-      DcMotorL.run(-170, MOTOR2);
-      DcMotorR.run(-150, MOTOR3);
+      robotSetJoyStick(-120,-120);
+//      DcMotorL.run(-170, MOTOR2);
+//      DcMotorR.run(-150, MOTOR3);
   }
   else if ((LINE.readSensor1() == 1) && (LINE.readSensor2() == 0)) {
       //Serial.println("left");
-      DcMotorL.run(160, MOTOR2);
-      DcMotorR.run(140, MOTOR3);
+      robotSetJoyStick(140,140);
+//      DcMotorL.run(160, MOTOR2);
+//      DcMotorR.run(140, MOTOR3);
   }
   else if ((LINE.readSensor1() == 0) && (LINE.readSensor2() == 1)) {
        //Serial.println("right");
-      DcMotorL.run(-170, MOTOR2);
-      DcMotorR.run(-140, MOTOR3);
+      robotSetJoyStick(-140,-140);
+//      DcMotorL.run(-170, MOTOR2);
+//      DcMotorR.run(-140, MOTOR3);
   }
   else if ((LINE.readSensor1() == 1) && (LINE.readSensor2() == 1)) {
       //Serial.println("forward");
-      DcMotorL.run(150, MOTOR2);
-      DcMotorR.run(-140, MOTOR3);
+      robotSetJoyStick(140,-140);
+//      DcMotorL.run(150, MOTOR2);
+//      DcMotorR.run(-140, MOTOR3);
   }
 }
 
@@ -1205,15 +1213,15 @@ static void go_demo_srf05_lighsensor(void)
 static void go_demo_srf05(void)
 {
     if (Ultra.distanceCm1(200) >= 20) {
-      robotSetJoyStick(245,-245);
+      robotSetJoyStick(185,-185);
     }
     else{
       robotSetJoyStick(0,0);
       delay(50);
-      robotSetJoyStick(-245,255);
-      delay(500);
-      robotSetJoyStick(-255,-255);
-      delay(1000);
+      robotSetJoyStick(-185,185);
+      delay(200);
+      robotSetJoyStick(-205,-205);
+      delay(300);
     }
 }
 /* Bluetooth Low Energy API for iOs */
