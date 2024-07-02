@@ -302,24 +302,24 @@ void configRobot(int typeRobot) {
         signRight = 1;
       break;
       case Ranzer:
-        Serial.println("Ranzer");
         signLeft = -1;
         signRight = -1;
+        Serial.println("Ranzer");
       break;
       case Helicopter:
-        Serial.println("Helicopter");
-        signLeft = -1;
-        signRight = 1;
-      break;
-      case Avatar:
-        Serial.println("Avatar");
-        signLeft = -1;
-        signRight = 1;
-      break;  
-      case Dogger:
-        Serial.println("Dogger");
         signLeft = 1;
         signRight = 1;
+        Serial.println("Helicopter");
+      break;
+      case Avatar:
+        signLeft = -1;
+        signRight = 1;
+        Serial.println("Avatar");
+      break;  
+      case Dogger:
+        signLeft = 1;
+        signRight = 1;
+        Serial.println("Dogger");
       break;  
     }
 }
@@ -336,6 +336,7 @@ void setup()
   _servo.attach(1); 
   delay(100);      
   pinMode(measureBatPin, INPUT);
+//  robotSetJoyStick(100, -100);
 
 /*__________For Sleep mode___________________________*/
 //  timerCntEnterSleepMode = timerBegin(1, 80, true);
@@ -358,7 +359,7 @@ void setup()
   Serial.println("getTypeRobot: " + getTypeRobot + nameRobot);    
   configRobot(nameRobot);
 //  writeStringToEEPROM(addrSaveNameRobot, String(BASE_NAME.c_str()));
-//  delay(100);    
+//  delay(100);   
   curName = readStringFromEEPROM(addrSaveNameRobot);
   Serial.print("Init name: " + curName);
   if (curName != "") {
@@ -384,7 +385,7 @@ void setup()
 /*---------------------------------------------------------------------------*/
 void loop() 
 {
-   //robotSetJoyStick(100, 100);
+   //robotSetJoyStick(-100, 100);
 //    DcMotorL.run(150, MOTOR1);
 //    DcMotorL.run(-150, MOTOR2);
 //    DcMotorR.run(-150, MOTOR3);
@@ -419,8 +420,8 @@ void loop()
 //       delay(100);
 
 //        VnUltrasonicSensor  Ultra(ULTRA);
-//       Serial.println(Ultra.distanceCm1(5000));
-//       delay(500);
+//       Serial.println(Ultra.distanceCm(5000));
+//       delay(50);
 //       measureBattery();
 //       robotGetSoundSensor();
 //       serialHandle();
@@ -628,7 +629,7 @@ void robotSetMatrix(unsigned int display[], int duration)
 }
 float robotGetDistance(void)
 {
-  float distance = (float)Ultra.distanceCm1(200);
+  float distance = (float)Ultra.distanceCm(200);
   ROBOX_LOG("Distance = %.2f\n", distance);
   return distance;
 }
@@ -956,7 +957,7 @@ void readSensor(int device)
     case ULTRASONIC_SENSOR:
     {       
       cntEnterSleepMode = 0;
-      value = (float)Ultra.distanceCm1(5000);
+      value = (float)Ultra.distanceCm(5000);
       ROBOX_LOG("\n Read ultrasonic sensor -- :%d", value);
       break;
     }
@@ -1182,7 +1183,7 @@ static void go_in_circle(void)
 static void go_demo_srf05_lighsensor(void)
 {
   while (SoundSensor.readSoundSignal()) {
-    if (Ultra.distanceCm1(200) <= 10) {
+    if (Ultra.distanceCm(200) <= 10) {
       Buzzer.tone(NOTE_A4, 700);
       Buzzer.tone(NOTE_F5, 700);
     }
@@ -1204,7 +1205,7 @@ static void go_demo_srf05_lighsensor(void)
 
 static void go_demo_srf05(void)
 {
-    if (Ultra.distanceCm1(200) >= 20) {
+    if (Ultra.distanceCm(200) >= 20) {
       robotSetJoyStick(245,-245);
     }
     else{
