@@ -93,6 +93,7 @@ std::string defaultName = "RANZER_00000";
 int addrSaveNameRobot = 0;
 std::string DEVICE_NAME = "RANZER_00000";
 std::string BASE_NAME = "RANZER_00000";
+//std::string BASE_NAME = "VROBOX_00000";
 String curName ="";
 /* Function Prototype */
 /*---------------------------------------------------------------------------*/
@@ -313,12 +314,12 @@ void configRobot(int typeRobot) {
       break;
       case Avatar:
         signLeft = -1;
-        signRight = 1;
+        signRight = -1;
         Serial.println("Avatar");
       break;  
       case Dogger:
         signLeft = 1;
-        signRight = 1;
+        signRight = -1;
         Serial.println("Dogger");
       break;  
     }
@@ -356,10 +357,10 @@ void setup()
     nameRobot = Avatar;     
   else if (getTypeRobot == "DOGG")
     nameRobot = Dogger;
-  Serial.println("getTypeRobot: " + getTypeRobot + nameRobot);    
-  configRobot(nameRobot);
-//  writeStringToEEPROM(addrSaveNameRobot, String(BASE_NAME.c_str()));
-//  delay(100);   
+//  Serial.println("getTypeRobot: " + getTypeRobot + nameRobot);    
+//  configRobot(nameRobot);
+  writeStringToEEPROM(addrSaveNameRobot, String(BASE_NAME.c_str()));
+  delay(100);   
   curName = readStringFromEEPROM(addrSaveNameRobot);
   Serial.print("Init name: " + curName);
   if (curName != "") {
@@ -385,6 +386,8 @@ void setup()
 /*---------------------------------------------------------------------------*/
 void loop() 
 {
+
+//   robotSetMatrix(maxtrix_display1, 5);
    //robotSetJoyStick(-100, 100);
 //    DcMotorL.run(150, MOTOR1);
 //    DcMotorL.run(-150, MOTOR2);
@@ -503,6 +506,7 @@ void Task_Run_Module_Code(void *parameter)
   for(;;){ 
       if (action_global == RUN) {
         runModule(device_global);
+        action_global = 0;
       }
     vTaskDelay(100);
   }
@@ -528,13 +532,13 @@ void robotStartup(void)
     FastLED.show();  
   
     robotSetLed(0, 255, 0, 0);
-//    Buzzer.tone(830, 250);
+    Buzzer.tone(830, 250);
     delay(100);    
     robotSetLed(0, 0, 255, 0);
-//    Buzzer.tone(554, 250);
+    Buzzer.tone(554, 250);
     delay(100);    
     robotSetLed(0, 0, 0, 255);
-//    Buzzer.tone(740, 250);
+    Buzzer.tone(740, 250);
     delay(100);
     robotSetLed(0, 0, 0, 0);
     robotSetJoyStick(1, 1);
@@ -1141,43 +1145,90 @@ static void soundEffect(void)
   DcMotorL.run(0, MOTOR2);
   DcMotorR.run(0, MOTOR3);
 }
+
 static void robotFollowingLine(void)
 {
-  if ((LINE.readSensor1() == 0) && (LINE.readSensor2() == 0)) {
-      //Serial.println("find");
-      DcMotorL.run(-170, MOTOR2);
-      DcMotorR.run(-150, MOTOR3);
+//  if (nameRobot == Ranzer) {
+    if ((LINE.readSensor1() == 0) && (LINE.readSensor2() == 0)) {
+        Serial.println("find");
+        DcMotorL.run(-190*signLeft, MOTOR2);
+        DcMotorR.run(-170*signRight, MOTOR3);
+    }
+    else if ((LINE.readSensor1() == 1) && (LINE.readSensor2() == 0)) {
+        Serial.println("left");
+        DcMotorL.run(180*signLeft, MOTOR2);
+        DcMotorR.run(160*signRight, MOTOR3);
+    }
+    else if ((LINE.readSensor1() == 0) && (LINE.readSensor2() == 1)) {
+         Serial.println("right");
+        DcMotorL.run(-190*signLeft, MOTOR2);
+        DcMotorR.run(-160*signRight, MOTOR3);
+    }
+    else if ((LINE.readSensor1() == 1) && (LINE.readSensor2() == 1)) {
+        Serial.println("forward");
+        DcMotorL.run(170*signLeft, MOTOR2);
+        DcMotorR.run(-160*signRight, MOTOR3);
+    }
   }
-  else if ((LINE.readSensor1() == 1) && (LINE.readSensor2() == 0)) {
-      //Serial.println("left");
-      DcMotorL.run(160, MOTOR2);
-      DcMotorR.run(140, MOTOR3);
-  }
-  else if ((LINE.readSensor1() == 0) && (LINE.readSensor2() == 1)) {
-       //Serial.println("right");
-      DcMotorL.run(-170, MOTOR2);
-      DcMotorR.run(-140, MOTOR3);
-  }
-  else if ((LINE.readSensor1() == 1) && (LINE.readSensor2() == 1)) {
-      //Serial.println("forward");
-      DcMotorL.run(150, MOTOR2);
-      DcMotorR.run(-140, MOTOR3);
-  }
-}
+
+//      if ((LINE.readSensor1() == 0) && (LINE.readSensor2() == 0)) {
+//        Serial.println("find");
+//        DcMotorL.run(-170*signLeft, MOTOR2);
+//        DcMotorR.run(-150*signRight, MOTOR3);
+//    }
+//    else if ((LINE.readSensor1() == 1) && (LINE.readSensor2() == 0)) {
+//        Serial.println("left");
+//        DcMotorL.run(160*signLeft, MOTOR2);
+//        DcMotorR.run(140*signRight, MOTOR3);
+//    }
+//    else if ((LINE.readSensor1() == 0) && (LINE.readSensor2() == 1)) {
+//         Serial.println("right");
+//        DcMotorL.run(-170*signLeft, MOTOR2);
+//        DcMotorR.run(-140*signRight, MOTOR3);
+//    }
+//    else if ((LINE.readSensor1() == 1) && (LINE.readSensor2() == 1)) {
+//        Serial.println("forward");
+//        DcMotorL.run(150*signLeft, MOTOR2);
+//        DcMotorR.run(-140*signRight, MOTOR3);
+//    }
+//  }
+//  else {
+//      if ((LINE.readSensor1() == 0) && (LINE.readSensor2() == 0)) {
+//        //Serial.println("find");
+//        DcMotorL.run(-125*signLeft, MOTOR2);
+//        DcMotorR.run(-115*signRight, MOTOR3);
+//      }
+//      else if ((LINE.readSensor1() == 1) && (LINE.readSensor2() == 0)) {
+//        //Serial.println("left");
+//        DcMotorL.run(120*signLeft, MOTOR2);
+//        DcMotorR.run(110*signRight, MOTOR3);
+//      }
+//      else if ((LINE.readSensor1() == 0) && (LINE.readSensor2() == 1)) {
+//         //Serial.println("right");
+//        DcMotorL.run(-125*signLeft, MOTOR2);
+//        DcMotorR.run(-110*signRight, MOTOR3);
+//      }
+//      else if ((LINE.readSensor1() == 1) && (LINE.readSensor2() == 1)) {
+//        //Serial.println("forward");
+//        DcMotorL.run(115*signLeft, MOTOR2);
+//        DcMotorR.run(-110*signRight, MOTOR3);
+//      }
+//    }
+//}
 
 static void go_in_circle(void)
 {
     if ((LINE.readSensor1() == 0) && (LINE.readSensor2() == 0)) {
-      DcMotorL.run(140, MOTOR2);
-      DcMotorR.run(-140, MOTOR3);
+      DcMotorL.run(140*signLeft, MOTOR2);
+      DcMotorR.run(-140*signRight, MOTOR3);
     }
     else if ((LINE.readSensor1() == 1) && (LINE.readSensor2() == 1)) {
-      DcMotorL.run(-140, MOTOR2);
-      DcMotorR.run(140, MOTOR3);
-      delay(500);
-      DcMotorL.run(-150, MOTOR2);
-      DcMotorR.run(-170, MOTOR3);
-      delay(1000);
+      DcMotorL.run(-150*signLeft, MOTOR2);
+      DcMotorR.run(150*signRight, MOTOR3);
+      delay(700);
+      DcMotorL.run(-160*signLeft, MOTOR2);
+      DcMotorR.run(-180*signRight, MOTOR3);
+      delay(1200);
     }
 }
 static void go_demo_srf05_lighsensor(void)
@@ -1237,8 +1288,8 @@ class BLERobotCallbacks: public BLECharacteristicCallbacks {
       uint8_t charBuf[64];  
       int length = 0;    
       std::string value = pCharacteristic->getValue();
-//
-//      ROBOX_LOG("BLE write: %d", value);
+
+      ROBOX_LOG("BLE write: %d", value);
 //      for (int i = 0; i < value.length(); i++) {
 //        charBuf[i] = value[i];
 //        ROBOX_LOG("%x ", charBuf[i]);
