@@ -303,12 +303,12 @@ void configRobot(int typeRobot) {
         signRight = 1;
       break;
       case Ranzer:
-        signLeft = -1;
-        signRight = -1;
+        signLeft = 1;
+        signRight = 1;
         Serial.println("Ranzer");
       break;
       case Helicopter:
-        signLeft = 1;
+        signLeft = -1;
         signRight = 1;
         Serial.println("Helicopter");
       break;
@@ -359,8 +359,8 @@ void setup()
     nameRobot = Dogger;
 //  Serial.println("getTypeRobot: " + getTypeRobot + nameRobot);    
 //  configRobot(nameRobot);
-  writeStringToEEPROM(addrSaveNameRobot, String(BASE_NAME.c_str()));
-  delay(100);   
+//  writeStringToEEPROM(addrSaveNameRobot, String(BASE_NAME.c_str()));
+//  delay(100);   
   curName = readStringFromEEPROM(addrSaveNameRobot);
   Serial.print("Init name: " + curName);
   if (curName != "") {
@@ -532,13 +532,13 @@ void robotStartup(void)
     FastLED.show();  
   
     robotSetLed(0, 255, 0, 0);
-    Buzzer.tone(830, 250);
+    //Buzzer.tone(830, 250);
     delay(100);    
     robotSetLed(0, 0, 255, 0);
-    Buzzer.tone(554, 250);
+    //Buzzer.tone(554, 250);
     delay(100);    
     robotSetLed(0, 0, 0, 255);
-    Buzzer.tone(740, 250);
+    //Buzzer.tone(740, 250);
     delay(100);
     robotSetLed(0, 0, 0, 0);
     robotSetJoyStick(1, 1);
@@ -1151,23 +1151,23 @@ static void robotFollowingLine(void)
 //  if (nameRobot == Ranzer) {
     if ((LINE.readSensor1() == 0) && (LINE.readSensor2() == 0)) {
         Serial.println("find");
-        DcMotorL.run(-190*signLeft, MOTOR2);
-        DcMotorR.run(-170*signRight, MOTOR3);
+        DcMotorL.run(-140*signLeft, MOTOR2);
+        DcMotorR.run(-120*signRight, MOTOR3);
     }
     else if ((LINE.readSensor1() == 1) && (LINE.readSensor2() == 0)) {
         Serial.println("left");
-        DcMotorL.run(180*signLeft, MOTOR2);
-        DcMotorR.run(160*signRight, MOTOR3);
+        DcMotorL.run(130*signLeft, MOTOR2);
+        DcMotorR.run(110*signRight, MOTOR3);
     }
     else if ((LINE.readSensor1() == 0) && (LINE.readSensor2() == 1)) {
          Serial.println("right");
-        DcMotorL.run(-190*signLeft, MOTOR2);
-        DcMotorR.run(-160*signRight, MOTOR3);
+        DcMotorL.run(-140*signLeft, MOTOR2);
+        DcMotorR.run(-110*signRight, MOTOR3);
     }
     else if ((LINE.readSensor1() == 1) && (LINE.readSensor2() == 1)) {
         Serial.println("forward");
-        DcMotorL.run(170*signLeft, MOTOR2);
-        DcMotorR.run(-160*signRight, MOTOR3);
+        DcMotorL.run(120*signLeft, MOTOR2);
+        DcMotorR.run(-110*signRight, MOTOR3);
     }
   }
 
@@ -1257,14 +1257,14 @@ static void go_demo_srf05_lighsensor(void)
 static void go_demo_srf05(void)
 {
     if (Ultra.distanceCm(200) >= 20) {
-      robotSetJoyStick(245,-245);
+      robotSetJoyStick(145,-145);
     }
     else{
       robotSetJoyStick(0,0);
       delay(50);
-      robotSetJoyStick(-245,255);
+      robotSetJoyStick(-145,155);
       delay(500);
-      robotSetJoyStick(-255,-255);
+      robotSetJoyStick(-155,-155);
       delay(1000);
     }
 }
